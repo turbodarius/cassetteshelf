@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>cassetteshelf.com</title>
+    <link rel="stylesheet" href="cassetteshelf.css">
+    <meta name="description" content="cassetteshelf official website">
+    <meta charset="UTF-8">
+</head>
+
+<body>
+
+    <section class="panel">
+        <div class="header" style="height: 0;">
+            <a href="">cassetteshelf.com</a>
+            <a>2026</a>
+        </div>
+
+        <div>
+	        <video class="videohero" autoplay loop muted playsinline>
+	            <source src="images/v4.mp4" type="video/mp4">
+	        </video>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="header">
+            <p style="-webkit-text-stroke: 0px transparent">secret load-bearing div</p>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="header">
+            <a href="">build your own now</a>
+            <a>from 17.25 USD</a>
+        </div>
+
+        <div class="typflex">
+        	<div class="circlediv">
+
+        		<div>
+        			<h1>configuration</h1>
+        			<h3>each cassette shelf is made entirely out of metal.</h3>
+        			<h3>the shelves are shipped disassembled in a small box, assembly is required on arrival. tools for the shelf assembly are provided.</h3>
+        			<h3>all shelves are powdercoated with a glossy white finish and black hardware.</h3>
+        			<h3>for custom colors, oversized orders and special requests, contact us.</h3>
+
+        			<label>
+						Columns:
+						<input type="number" id="cols" min="1" max="10" value="1">
+					</label>
+					<label>
+						Rows:
+						<input type="number" id="rows" min="1" max="10" value="1">
+					</label>
+
+					<br>
+					<br>
+
+					<a class="button">add to cart</a>
+				</div>
+
+        	</div>
+        	<div class="circlediv">
+        		<img id="productImage" src="images/1x1.jpg">
+        	</div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="header">
+            <a href="">information</a>
+            <a>and</a>
+            <a>disclaimers</a>
+        </div>
+
+        <div class="typflex">
+        	<div class="circlediv"></div>
+        	<div class="circlediv"></div>
+        </div>
+    </section>
+
+<script>
+
+	document.addEventListener("DOMContentLoaded", function() {
+
+	  const cols = document.getElementById("cols");
+	  const rows = document.getElementById("rows");
+	  const image = document.getElementById("productImage");
+	  const debug = document.getElementById("filenameDebug");
+
+
+	  function updateImage() {
+
+	    const filename = cols.value + "x" + rows.value + ".png";
+
+	    const fullPath = "images/" + filename;
+
+	    image.src = fullPath;
+
+	    debug.textContent = fullPath;
+
+	  }
+
+
+	  image.onerror = function() {
+
+	  	image.src = "images/debug.png";
+
+	    debug.textContent = "images/debug.png";
+
+	    debug.style.color = "red";
+
+	  };
+
+
+	  image.onload = function() {
+
+	    debug.style.color = "green";
+
+	  };
+
+
+	  cols.addEventListener("input", updateImage);
+
+	  rows.addEventListener("input", updateImage);
+
+
+	  updateImage();
+
+
+	});
+
+</script>
+
+</body>
+</html>
