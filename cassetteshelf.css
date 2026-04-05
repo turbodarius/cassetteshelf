@@ -111,8 +111,13 @@ body {
 }
 
 .circlediv h3{
-	width: 50%;
+	width: 60%;
 	justify-self: center;
+	font-size: calc(6px + 1cqw);
+}
+
+.price{
+	font-size: calc(6px + 2cqw);
 }
 
 .button {
@@ -120,11 +125,11 @@ body {
 	justify-self: center;
 	justify-content: space-evenly;
 
-	width: 150px;
+	width: 10cqw;
 	padding: 10px;
 	border-radius: 10px;
 
-	font-size: 30px;
+	font-size: calc(10px + 1cqw);
 	color: white;
 	background-color: black;
 }

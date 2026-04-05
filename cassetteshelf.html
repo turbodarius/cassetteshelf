@@ -16,7 +16,7 @@
         </div>
 
         <div>
-	        <video class="videohero" autoplay loop muted playsinline>
+	        <video class="videohero" poster="/images/videoposter.jpg" autoplay loop muted playsinline>
 	            <source src="images/v4.mp4" type="video/mp4">
 	        </video>
         </div>
@@ -38,22 +38,23 @@
         	<div class="circlediv">
 
         		<div>
-        			<h1>configuration</h1>
-        			<h3>each cassette shelf is made entirely out of metal.</h3>
+        			<h3>each cassette shelf is made out of aluminum, steel and PLA washers.</h3>
         			<h3>the shelves are shipped disassembled in a small box, assembly is required on arrival. tools for the shelf assembly are provided.</h3>
         			<h3>all shelves are powdercoated with a glossy white finish and black hardware.</h3>
         			<h3>for custom colors, oversized orders and special requests, contact us.</h3>
+        			<h3>contact@cassetteshelf.com</h3>
 
         			<label>
-						Columns:
+						columns:
 						<input type="number" id="cols" min="1" max="10" value="1">
 					</label>
 					<label>
-						Rows:
+						rows:
 						<input type="number" id="rows" min="1" max="10" value="1">
 					</label>
 
-					<br>
+					<h2 class="price" id="priceText">26.94$ CAD</h2>
+
 					<br>
 
 					<a class="button">add to cart</a>
@@ -81,54 +82,96 @@
 
 <script>
 
-	document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function() {
 
-	  const cols = document.getElementById("cols");
-	  const rows = document.getElementById("rows");
-	  const image = document.getElementById("productImage");
-	  const debug = document.getElementById("filenameDebug");
+  const cols = document.getElementById("cols");
+  const rows = document.getElementById("rows");
+  const image = document.getElementById("productImage");
+  const debug = document.getElementById("filenameDebug") || {};
+  const priceText = document.getElementById("priceText");
 
+  // Pricing Table
+  const prices = {
+    "1x1": 26.94,
+    "1x2": 39.57,
+    "1x3": 52.20,
+    "1x4": 64.83,
+    "1x5": 77.46,
+    "1x6": 90.09,
+    "2x1": 44.23,
+    "2x2": 66.11,
+    "2x3": 87.99,
+    "2x4": 109.88,
+    "2x5": 131.76,
+    "2x6": 153.64,
+    "3x1": 61.51,
+    "3x2": 92.65,
+    "3x3": 123.79,
+    "3x4": 154.92,
+    "3x5": 186.06,
+    "3x6": 217.20,
+    "4x1": 78.80,
+    "4x2": 119.19,
+    "4x3": 159.58,
+    "4x4": 199.97,
+    "4x5": 240.36,
+    "4x6": 280.75,
+    "5x1": 96.08,
+    "5x2": 145.73,
+    "5x3": 195.37,
+    "5x4": 245.01,
+    "5x5": 294.66,
+    "5x6": 344.30,
+    "6x1": 113.37,
+    "6x2": 172.26,
+    "6x3": 231.16,
+    "6x4": 290.06,
+    "6x5": 348.96,
+    "6x6": 407.85,
+  };
 
-	  function updateImage() {
+  let lastRequested = "";
 
-	    const filename = cols.value + "x" + rows.value + ".png";
+  function updateImage() {
 
-	    const fullPath = "images/" + filename;
+    const key = cols.value + "x" + rows.value;
+    const filename = key + ".png";
+    const fullPath = "images/" + filename;
 
-	    image.src = fullPath;
+    lastRequested = fullPath;
 
-	    debug.textContent = fullPath;
+    // Update image
+    image.src = fullPath;
 
-	  }
+    // Update debug
+    debug.textContent = fullPath;
 
+    // Update price
+    if (prices[key]) {
+      priceText.textContent = prices[key].toFixed(2) + "$ CAD";
+      priceText.style.color = "black";
+    } else {
+      priceText.textContent = "contact us";
+      priceText.style.color = "red";
+    }
+  }
 
-	  image.onerror = function() {
+  image.onerror = function() {
+    image.src = "images/debug.png";
+    debug.textContent = "images/debug.png (fallback for " + lastRequested + ")";
+    debug.style.color = "red";
+  };
 
-	  	image.src = "images/debug.png";
+  image.onload = function() {
+    debug.style.color = "green";
+  };
 
-	    debug.textContent = "images/debug.png";
+  cols.addEventListener("input", updateImage);
+  rows.addEventListener("input", updateImage);
 
-	    debug.style.color = "red";
+  updateImage();
 
-	  };
-
-
-	  image.onload = function() {
-
-	    debug.style.color = "green";
-
-	  };
-
-
-	  cols.addEventListener("input", updateImage);
-
-	  rows.addEventListener("input", updateImage);
-
-
-	  updateImage();
-
-
-	});
+});
 
 </script>
 
