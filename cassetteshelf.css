@@ -10,127 +10,147 @@ body {
     src: url("fonts/vag.ttf");
 }
 
+/* General Stuff */
+
+	.paragraph1 {
+
+		font-family: vag;
+		color: black;
+		-webkit-text-stroke: 0px transparent;
+		font-size: clamp(11px, 2vw, 2vw);
+		margin-top: 1px;
+		margin-bottom: 1px;
+
+	}
+
 /* Every page needs to be in one of these section things for the sticky headers to work i guess */
-.panel {
-    position: relative;
-}
 
-.videohero {
-    display: block;
-    width: 100vw;
-    height: auto;
+/* Sticky header mechanics */
 
-    object-fit: cover;
-    object-position: left top;
-}
+	.panel {
+	    position: relative;
+	}
 
-.header {
-    display: flex;
-    justify-content: space-between;
+	.videohero {
+	    display: block;
+	    width: 100vw;
+	    height: auto;
 
-    position: sticky;
-    top: 0;
+	    object-fit: cover;
+	    object-position: left top;
+	}
 
-    width: 100vw;
-    z-index: 100;
-}
+	.header {
+	    display: flex;
+	    justify-content: space-between;
 
-.header a, p {
-    display: block;
+	    position: sticky;
+	    top: 0;
 
-    margin: 10px;
-    margin-left: 25px;
-    margin-right: 20px;
+	    width: 100vw;
+	    z-index: 100;
+	}
 
-    font-family: "vag";
-    font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
+	.header a, p {
+	    display: block;
 
-    color: transparent;
-    text-decoration: none;
+	    margin: 10px;
+	    margin-left: 25px;
+	    margin-right: 20px;
 
-    -webkit-text-stroke: 1.5px black;
-    paint-order: stroke fill;
-}
+	    font-family: "vag";
+	    font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
 
-.typflex{
-	display: flex;
-	position: relative;
-	flex-wrap: wrap;
+	    color: transparent;
+	    text-decoration: none;
 
-	justify-content: space-between;
+	    -webkit-text-stroke: 1.5px black;
+	    paint-order: stroke fill;
+	}
 
-	width: 100vw;
-	max-width: 100vw;
+/* CircleDiv Stuff */
 
-/*	height: 100vh; */
-/*	max-height: 100vh; */
+	.typflex{
+		display: flex;
+		position: relative;
+		flex-wrap: wrap;
 
-	gap: 10px 20px;
+		justify-content: space-between;
 
-	background-color: transparent;
-}
+		width: 100vw;
+		max-width: 100vw;
 
-.circlediv{
-	display: flex;
-	position: relative;
-	overflow: hidden;
-	text-align: center;
-	width: 100%;
-	aspect-ratio: 1/1;
-	align-self: flex-start;
+	/*	height: 100vh; */
+	/*	max-height: 100vh; */
 
-	flex: 1;
-	margin: 30px;
-	min-width: 400px;
+		gap: 10px 20px;
 
-	background-color: transparent;
+		background-color: transparent;
+	}
 
-	border-radius: 50%;
-	border: 1.5px solid black;
+	.circlediv{
+		display: flex;
+		position: relative;
+		overflow: hidden;
+		text-align: center;
+		width: 100%;
+		aspect-ratio: 1/1;
+		align-self: flex-start;
 
-	font-family: "vag";
-}
+		flex: 1;
+		margin: 30px;
+		min-width: 400px;
 
-.circlediv img{
-	position: relative;
+		background-color: transparent;
 
-	object-position: center;
-	object-fit: cover;
+		border-radius: 50%;
+		border: 1.5px solid black;
 
-	width: auto;
-	height: 100%;
-}
+		font-family: "vag";
+	}
 
-.circlediv div{
-	position: relative;
-	margin: auto;
+	.circlediv img{
+		position: relative;
 
-	color: black;
+		object-position: center;
+		object-fit: cover;
 
-	height: auto;
-}
+		width: auto;
+		height: 100%;
+	}
 
-.circlediv h3{
-	width: 60%;
-	justify-self: center;
-	font-size: calc(6px + 1cqw);
-}
+	.circlediv div{
+		position: relative;
+		margin: auto;
 
-.price{
-	font-size: calc(6px + 2cqw);
-}
+		color: black;
 
-.button {
-	display: flex;
-	justify-self: center;
-	justify-content: space-evenly;
+		height: auto;
+	}
 
-	width: 10cqw;
-	padding: 10px;
-	border-radius: 10px;
+	.circlediv h3{
+		width: 60%;
+		justify-self: center;
+		font-size: calc(6px + 1cqw);
+	}
 
-	font-size: calc(10px + 1cqw);
-	color: white;
-	background-color: black;
-}
+/* Shop stuff */
+
+	.price{
+		font-size: calc(6px + 2cqw);
+	}
+
+	.button {
+		display: flex;
+		justify-self: center;
+		justify-content: space-evenly;
+
+		width: 10cqw;
+		padding: 10px;
+		border-radius: 10px;
+
+		font-size: calc(10px + 1cqw);
+		color: white;
+		background-color: black;
+	}
 

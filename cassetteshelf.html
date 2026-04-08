@@ -5,10 +5,59 @@
     <link rel="stylesheet" href="cassetteshelf.css">
     <meta name="description" content="cassetteshelf official website">
     <meta charset="UTF-8">
+
+    <!-- Preloads (Do not forget to update when updating images!) -->
+
+        <link rel="preload" type="image" href="images/videoposter.jpg">
+        <link rel="preload" type="image" href="images/v4.mp4">
+
+        <link rel="preload" type="image" href="images/1x1.png">
+        <link rel="preload" type="image" href="images/1x2.png">
+        <link rel="preload" type="image" href="images/1x3.png">
+        <link rel="preload" type="image" href="images/1x4.png">
+        <link rel="preload" type="image" href="images/1x5.png">
+        <link rel="preload" type="image" href="images/1x6.png">
+
+        <link rel="preload" type="image" href="images/2x1.png">
+        <link rel="preload" type="image" href="images/2x2.png">
+        <link rel="preload" type="image" href="images/2x3.png">
+        <link rel="preload" type="image" href="images/2x4.png">
+        <link rel="preload" type="image" href="images/2x5.png">
+        <link rel="preload" type="image" href="images/2x6.png">
+
+        <link rel="preload" type="image" href="images/3x1.png">
+        <link rel="preload" type="image" href="images/3x2.png">
+        <link rel="preload" type="image" href="images/3x3.png">
+        <link rel="preload" type="image" href="images/3x4.png">
+        <link rel="preload" type="image" href="images/3x5.png">
+        <link rel="preload" type="image" href="images/3x6.png">
+
+        <link rel="preload" type="image" href="images/4x1.png">
+        <link rel="preload" type="image" href="images/4x2.png">
+        <link rel="preload" type="image" href="images/4x3.png">
+        <link rel="preload" type="image" href="images/4x4.png">
+        <link rel="preload" type="image" href="images/4x5.png">
+        <link rel="preload" type="image" href="images/4x6.png">
+
+        <link rel="preload" type="image" href="images/5x1.png">
+        <link rel="preload" type="image" href="images/5x2.png">
+        <link rel="preload" type="image" href="images/5x3.png">
+        <link rel="preload" type="image" href="images/5x4.png">
+        <link rel="preload" type="image" href="images/5x5.png">
+        <link rel="preload" type="image" href="images/5x6.png">
+
+        <link rel="preload" type="image" href="images/6x1.png">
+        <link rel="preload" type="image" href="images/6x2.png">
+        <link rel="preload" type="image" href="images/6x3.png">
+        <link rel="preload" type="image" href="images/6x4.png">
+        <link rel="preload" type="image" href="images/6x5.png">
+        <link rel="preload" type="image" href="images/6x6.png">
+
 </head>
 
 <body>
 
+    <!-- Top Header -->
     <section class="panel">
         <div class="header" style="height: 0;">
             <a href="">cassetteshelf.com</a>
@@ -20,14 +69,29 @@
 	            <source src="images/v4.mp4" type="video/mp4">
 	        </video>
         </div>
-    </section>
 
-    <section class="panel">
-        <div class="header">
-            <p style="-webkit-text-stroke: 0px transparent">secret load-bearing div</p>
+        <div style="position: absolute; bottom: 0px;">
+            <p class="paragraph1">cassetteshelf.com makes audio cassette shelves.</p>
+            <br>
+            <p class="paragraph1">these shelves are made from glossy white powder coated</p>
+            <p class="paragraph1">aluminum plates and steel struts</p>
+            <p class="paragraph1">fastened together using black-oxide hardware.</p>
+            <p class="paragraph1">these shelves are made to order using a simple</p>
+            <p class="paragraph1">price calculator, no rounding up, no price gouging.</p>
+            <p class="paragraph1">the price is the total cost +30%.</p>
+            <p class="paragraph1">however many cassette slots you may need,</p>
+            <p class="paragraph1">now or in the future, our system grows with you.</p>
         </div>
     </section>
 
+    <!-- Load bearing invisible header -->
+    <section class="panel">
+        <div class="header">
+            <p style="-webkit-text-stroke: transparent">a</p>
+        </div>
+    </section>
+
+    <!-- Store section header and section -->
     <section class="panel">
         <div class="header">
             <a href="">build your own now</a>
@@ -38,8 +102,7 @@
         	<div class="circlediv">
 
         		<div>
-        			<h3>each cassette shelf is made out of aluminum, steel and PLA washers.</h3>
-        			<h3>the shelves are shipped disassembled in a small box, assembly is required on arrival. tools for the shelf assembly are provided.</h3>
+        			<h3>all shelves are shipped disassembled in a small box, assembly is required on arrival. tools for the shelf assembly are provided.</h3>
         			<h3>all shelves are powdercoated with a glossy white finish and black hardware.</h3>
         			<h3>for custom colors, oversized orders and special requests, contact us.</h3>
         			<h3>contact@cassetteshelf.com</h3>
@@ -54,6 +117,7 @@
 					</label>
 
 					<h2 class="price" id="priceText">26.94$ CAD</h2>
+					<h3 id="quantity">contains 10 cassettes</h3>
 
 					<br>
 
@@ -67,6 +131,7 @@
         </div>
     </section>
 
+    <!-- Information, about header and section -->
     <section class="panel">
         <div class="header">
             <a href="">information</a>
@@ -80,99 +145,104 @@
         </div>
     </section>
 
+<!-- Javascript Section -->
 <script>
 
-document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function() {
 
-  const cols = document.getElementById("cols");
-  const rows = document.getElementById("rows");
-  const image = document.getElementById("productImage");
-  const debug = document.getElementById("filenameDebug") || {};
-  const priceText = document.getElementById("priceText");
+      const cols = document.getElementById("cols");
+      const rows = document.getElementById("rows");
+      const image = document.getElementById("productImage");
+      const debug = document.getElementById("filenameDebug") || {};
+      const priceText = document.getElementById("priceText");
+      const quantity = document.getElementById("quantity");
 
-  // Pricing Table
-  const prices = {
-    "1x1": 26.94,
-    "1x2": 39.57,
-    "1x3": 52.20,
-    "1x4": 64.83,
-    "1x5": 77.46,
-    "1x6": 90.09,
-    "2x1": 44.23,
-    "2x2": 66.11,
-    "2x3": 87.99,
-    "2x4": 109.88,
-    "2x5": 131.76,
-    "2x6": 153.64,
-    "3x1": 61.51,
-    "3x2": 92.65,
-    "3x3": 123.79,
-    "3x4": 154.92,
-    "3x5": 186.06,
-    "3x6": 217.20,
-    "4x1": 78.80,
-    "4x2": 119.19,
-    "4x3": 159.58,
-    "4x4": 199.97,
-    "4x5": 240.36,
-    "4x6": 280.75,
-    "5x1": 96.08,
-    "5x2": 145.73,
-    "5x3": 195.37,
-    "5x4": 245.01,
-    "5x5": 294.66,
-    "5x6": 344.30,
-    "6x1": 113.37,
-    "6x2": 172.26,
-    "6x3": 231.16,
-    "6x4": 290.06,
-    "6x5": 348.96,
-    "6x6": 407.85,
-  };
+      // Pricing Table
+          const prices = {
+            "1x1": 26.94,
+            "1x2": 39.57,
+            "1x3": 52.20,
+            "1x4": 64.83,
+            "1x5": 77.46,
+            "1x6": 90.09,
+            "2x1": 44.23,
+            "2x2": 66.11,
+            "2x3": 87.99,
+            "2x4": 109.88,
+            "2x5": 131.76,
+            "2x6": 153.64,
+            "3x1": 61.51,
+            "3x2": 92.65,
+            "3x3": 123.79,
+            "3x4": 154.92,
+            "3x5": 186.06,
+            "3x6": 217.20,
+            "4x1": 78.80,
+            "4x2": 119.19,
+            "4x3": 159.58,
+            "4x4": 199.97,
+            "4x5": 240.36,
+            "4x6": 280.75,
+            "5x1": 96.08,
+            "5x2": 145.73,
+            "5x3": 195.37,
+            "5x4": 245.01,
+            "5x5": 294.66,
+            "5x6": 344.30,
+            "6x1": 113.37,
+            "6x2": 172.26,
+            "6x3": 231.16,
+            "6x4": 290.06,
+            "6x5": 348.96,
+            "6x6": 407.85,
+          };
 
-  let lastRequested = "";
+      let lastRequested = "";
 
-  function updateImage() {
+      function updateImage() {
 
-    const key = cols.value + "x" + rows.value;
-    const filename = key + ".png";
-    const fullPath = "images/" + filename;
+        const key = cols.value + "x" + rows.value;
+        const filename = key + ".png";
+        const fullPath = "images/" + filename;
 
-    lastRequested = fullPath;
+        lastRequested = fullPath;
 
-    // Update image
-    image.src = fullPath;
+        // Update image
+        image.src = fullPath;
 
-    // Update debug
-    debug.textContent = fullPath;
+        // Update debug
+        debug.textContent = fullPath;
 
-    // Update price
-    if (prices[key]) {
-      priceText.textContent = prices[key].toFixed(2) + "$ CAD";
-      priceText.style.color = "black";
-    } else {
-      priceText.textContent = "contact us";
-      priceText.style.color = "red";
-    }
-  }
+        // Update price
+        if (prices[key]) {
+          priceText.textContent = prices[key].toFixed(2) + "$ CAD";
+          priceText.style.color = "black";
+        } else {
+          priceText.textContent = "contact us";
+          priceText.style.color = "red";
+        }
 
-  image.onerror = function() {
-    image.src = "images/debug.png";
-    debug.textContent = "images/debug.png (fallback for " + lastRequested + ")";
-    debug.style.color = "red";
-  };
+        // Update quantity
+        quantity.textContent = "contains up to " + cols.value * rows.value * 10 + " cassettes";
 
-  image.onload = function() {
-    debug.style.color = "green";
-  };
+      }
 
-  cols.addEventListener("input", updateImage);
-  rows.addEventListener("input", updateImage);
+      image.onerror = function() {
+        image.src = "images/debug.png";
+        debug.textContent = "images/debug.png (fallback for " + lastRequested + ")";
+        debug.style.color = "red";
+      };
 
-  updateImage();
+      image.onload = function() {
+        debug.style.color = "green";
+      };
 
-});
+      cols.addEventListener("input", updateImage);
+      rows.addEventListener("input", updateImage);
 
+      updateImage();
+
+    });
 </script>
 
 </body>
