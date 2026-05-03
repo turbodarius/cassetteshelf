@@ -95,7 +95,7 @@ body {
 		text-align: center;
 		width: 100%;
 		aspect-ratio: 1/1;
-		align-self: flex-start;
+		justify-content: center;
 
 		flex: 1;
 		margin: 30px;
@@ -134,6 +134,43 @@ body {
 		font-size: calc(6px + 1cqw);
 	}
 
+	.circlediv h4{
+		width: 60%;
+		justify-self: center;
+		font-size: calc(3px + 1cqw);
+	}
+
+	.ovaldiv{
+		display: flex;
+		position: relative;
+		overflow: hidden;
+		text-align: center;
+		width: 100%;
+		aspect-ratio: 16/8;
+		align-self: flex-start;
+		justify-content: center;
+
+		flex: 1;
+		margin: 30px;
+		min-width: 400px;
+
+		background-color: transparent;
+
+		border-radius: 50%;
+		border: 1.5px solid black;
+
+		font-family: "vag";
+	}
+
+	.dottedBox{
+		display: inline-block;
+		padding: 3%;
+
+		border: 1.5px dotted black;
+		border-radius: 5%;
+
+	}
+
 /* Shop stuff */
 
 	.price{
@@ -154,3 +191,69 @@ body {
 		background-color: black;
 	}
 
+/* Button override stuff */
+
+/* Hide native number input arrows */
+	input[type=number]::-webkit-inner-spin-button,
+	input[type=number]::-webkit-outer-spin-button {
+	    -webkit-appearance: none;
+	    margin: 0;
+	}
+
+	input[type=number] {
+	    -moz-appearance: textfield;
+	}
+
+	.controlgroup{
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    align-items: center;
+    margin-top: 20px;
+	}	
+
+	.stepper{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: black;
+    font-family: "vag";
+    font-size: calc(10px + 1.2cqw);
+	}
+
+	.stepper input{
+    width: 95%;
+    height: 10%;
+    text-align: center;
+    padding-top: 2%;
+
+    font-size: calc(10px + 1.2cqw);
+    font-family: "vag";
+
+    border: 1.5px solid black;
+    border-radius: 12px;
+	}
+
+	.stepbtn{
+    width: 30px;
+    height: 30px;
+
+    border-radius: 50%;
+    border: 1.5px solid black;
+
+    background: black;
+    color: white;
+
+    font-size: 1.5rem;
+    line-height: 0;
+
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+	}
+
+	.stepbtn:active{
+	    transform: scale(0.95);
+	}

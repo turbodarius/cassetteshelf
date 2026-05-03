@@ -10,6 +10,7 @@
 
         <link rel="preload" type="image" href="images/videoposter.jpg">
         <link rel="preload" type="image" href="images/v4.mp4">
+        <link rel="preload" type="image" href="images/anim1.mp4">
 
         <link rel="preload" type="image" href="images/1x1.png">
         <link rel="preload" type="image" href="images/1x2.png">
@@ -91,6 +92,22 @@
         </div>
     </section>
 
+    <!-- More images and stuff section -->
+    <section class="panel">
+        <div class="header">
+            <a>the</a>
+            <a>shelf</a>
+        </div>
+
+        <div class="typflex">
+            <div class="ovaldiv">
+                <video class="circledivVideo" muted autoplay playsinline loop>
+                    <source src="images/anim1.mp4" type="video/mp4">
+                </video>
+            </div>
+        </div>
+    </section>
+
     <!-- Store section header and section -->
     <section class="panel">
         <div class="header">
@@ -107,21 +124,33 @@
         			<h3>for custom colors, oversized orders and special requests, contact us.</h3>
         			<h3>contact@cassetteshelf.com</h3>
 
-        			<label>
-						columns:
-						<input type="number" id="cols" min="1" max="10" value="1">
-					</label>
-					<label>
-						rows:
-						<input type="number" id="rows" min="1" max="10" value="1">
-					</label>
+                    <div class="dottedBox">
+            			<div class="controlgroup">
 
-					<h2 class="price" id="priceText">26.94$ CAD</h2>
-					<h3 id="quantity">contains 10 cassettes</h3>
+                            <div class="stepper">
+                                <span>columns</span>
+                                <button class="stepbtn" data-target="cols" data-step="-1">−</button>
+                                <input type="number" id="cols" min="1" max="10" value="1">
+                                <button class="stepbtn" data-target="cols" data-step="1">+</button>
+                            </div>
 
-					<br>
+                            <div class="stepper">
+                                <span>rows</span>
+                                <button class="stepbtn" data-target="rows" data-step="-1">−</button>
+                                <input type="number" id="rows" min="1" max="10" value="1">
+                                <button class="stepbtn" data-target="rows" data-step="1">+</button>
+                            </div>
 
-					<a class="button">add to cart</a>
+                        </div>
+
+    					<h2 class="price" id="priceText">26.94$ CAD</h2>
+    					<h4 id="quantity">contains 10 cassettes</h3>
+
+    					<br>
+
+    					<a class="button">add to cart</a>
+                    </div>
+
 				</div>
 
         	</div>
@@ -239,6 +268,26 @@
 
       cols.addEventListener("input", updateImage);
       rows.addEventListener("input", updateImage);
+
+      // Custom stepper buttons
+        document.querySelectorAll(".stepbtn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const input = document.getElementById(btn.dataset.target);
+            const step = parseInt(btn.dataset.step);
+
+            let value = parseInt(input.value) + step;
+
+            const min = parseInt(input.min);
+            const max = parseInt(input.max);
+
+            value = Math.max(min, Math.min(max, value));
+
+            input.value = value;
+
+            // Trigger your existing logic
+            input.dispatchEvent(new Event("input"));
+          });
+        });
 
       updateImage();
 
