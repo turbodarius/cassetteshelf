@@ -9,7 +9,7 @@
     <!-- Preloads (Do not forget to update when updating images!) -->
 
         <link rel="preload" type="image" href="images/videoposter.jpg">
-        <link rel="preload" type="image" href="images/v4.mp4">
+        <link rel="preload" type="image" href="images/v5.mp4">
         <link rel="preload" type="image" href="images/anim1.mp4">
 
         <link rel="preload" type="image" href="images/1x1.png">
@@ -60,14 +60,14 @@
 
     <!-- Top Header -->
     <section class="panel">
-        <div class="header" style="height: 0;">
+        <div class="headerA" style="height: 0;">
             <a href="">cassetteshelf.com</a>
             <a>2026</a>
         </div>
 
         <div>
 	        <video class="videohero" poster="images/videoposter.jpg" autoplay loop muted playsinline>
-	            <source src="images/v4.mp4" type="video/mp4">
+	            <source src="images/v5.mp4" type="video/mp4">
 	        </video>
         </div>
 
@@ -92,20 +92,70 @@
         </div>
     </section>
 
-    <!-- More images and stuff section -->
+    <!-- concept & assembly -->
     <section class="panel">
         <div class="header">
-            <a>the</a>
-            <a>shelf</a>
+            <a>concept</a>
+            <a>&</a>
+            <a>assembly</a>
         </div>
 
         <div class="typflex">
             <div class="ovaldiv">
-                <video class="circledivVideo" muted autoplay playsinline loop>
-                    <source src="images/anim1.mp4" type="video/mp4">
-                </video>
+                <div class="circlemask">
+                    <video class="circledivVideo" muted playsinline loop>
+                        <source src="images/anim1.mp4" type="video/mp4">
+                    </video>
+                </div>
+            </div>
+
+            <div style="position: absolute; bottom: 10%; right: 0px; text-align: right;">
+                <p class="paragraph1">all shelves are shipped disassembled.</p>
+                <br>
+                <p class="paragraph1">all tools for assembly,</p>
+                <p class="paragraph1">as well as an instruction manual,</p>
+                <p class="paragraph1">are provided.</p>
             </div>
         </div>
+    </section>
+
+    <!-- images examples & uses -->
+    <section class="panel">
+        <div class="header">
+            <a>images</a>
+            <a>examples</a>
+            <a>&</a>
+            <a>uses</a>
+        </div>
+
+        <div class="typflex">
+            <div style="position: absolute; bottom: 10%; right: 0px; text-align: right;">
+                <p class="paragraph1">all shelves are shipped disassembled.</p>
+                <br>
+                <p class="paragraph1">all tools for assembly,</p>
+                <p class="paragraph1">as well as an instruction manual,</p>
+                <p class="paragraph1">are provided.</p>
+            </div>
+            <div class="circlediv" style="left: -50%;">
+                    <img src="images/photo1.jpg" style="transform: translateX(50%);">
+            </div>
+        </div>
+
+        <div class="typflex" style="overflow: hidden;">
+            <div style="position: absolute; bottom: 60%; left: 0px; text-align: left; z-index: 99;">
+                <p class="paragraph1">all shelves come with wall-mounting brackets.</p>
+                <br>
+                <p class="paragraph1">it is recommended that all shelves with more than 3 rows</p>
+                <p class="paragraph1">be wall-mounted.</p>
+            </div>
+
+            <div class="ovaldiv" style="right: -30%;">
+                <div class="circlemask">
+                    <img src="images/photo2.jpg" style="transform: translateY(-33.5%) translateX(-20.5%); width: 72%;">
+                </div>
+            </div>
+        </div>
+
     </section>
 
     <!-- Store section header and section -->
@@ -116,15 +166,14 @@
         </div>
 
         <div class="typflex">
-        	<div class="circlediv">
+        	<div class="circlediv" style="background-color: black;">
 
         		<div>
-        			<h3>all shelves are shipped disassembled in a small box, assembly is required on arrival. tools for the shelf assembly are provided.</h3>
-        			<h3>all shelves are powdercoated with a glossy white finish and black hardware.</h3>
-        			<h3>for custom colors, oversized orders and special requests, contact us.</h3>
-        			<h3>contact@cassetteshelf.com</h3>
+        			<h3 style="color: white;">all shelves are powdercoated with a glossy white finish and black hardware.</h3>
+        			<h3 style="color: white;">for custom colors, oversized orders and special requests, contact us.</h3>
+        			<h3 style="color: white;">contact@cassetteshelf.com</h3>
 
-                    <div class="dottedBox">
+                    <div class="dottedBox" style="background-color: white;">
             			<div class="controlgroup">
 
                             <div class="stepper">
@@ -163,136 +212,162 @@
     <!-- Information, about header and section -->
     <section class="panel">
         <div class="header">
-            <a href="">information</a>
-            <a>and</a>
+            <a>dimensions</a>
+            <a>&</a>
             <a>disclaimers</a>
         </div>
 
         <div class="typflex">
         	<div class="circlediv"></div>
         	<div class="circlediv"></div>
+            <div class="circlediv"></div>
         </div>
     </section>
 
-<!-- Javascript Section -->
-<script>
+    <!-- Javascript Section -->
+    <script>
 
-    document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function() {
 
-      const cols = document.getElementById("cols");
-      const rows = document.getElementById("rows");
-      const image = document.getElementById("productImage");
-      const debug = document.getElementById("filenameDebug") || {};
-      const priceText = document.getElementById("priceText");
-      const quantity = document.getElementById("quantity");
+          const cols = document.getElementById("cols");
+          const rows = document.getElementById("rows");
+          const image = document.getElementById("productImage");
+          const debug = document.getElementById("filenameDebug") || {};
+          const priceText = document.getElementById("priceText");
+          const quantity = document.getElementById("quantity");
 
-      // Pricing Table
-          const prices = {
-            "1x1": 26.94,
-            "1x2": 39.57,
-            "1x3": 52.20,
-            "1x4": 64.83,
-            "1x5": 77.46,
-            "1x6": 90.09,
-            "2x1": 44.23,
-            "2x2": 66.11,
-            "2x3": 87.99,
-            "2x4": 109.88,
-            "2x5": 131.76,
-            "2x6": 153.64,
-            "3x1": 61.51,
-            "3x2": 92.65,
-            "3x3": 123.79,
-            "3x4": 154.92,
-            "3x5": 186.06,
-            "3x6": 217.20,
-            "4x1": 78.80,
-            "4x2": 119.19,
-            "4x3": 159.58,
-            "4x4": 199.97,
-            "4x5": 240.36,
-            "4x6": 280.75,
-            "5x1": 96.08,
-            "5x2": 145.73,
-            "5x3": 195.37,
-            "5x4": 245.01,
-            "5x5": 294.66,
-            "5x6": 344.30,
-            "6x1": 113.37,
-            "6x2": 172.26,
-            "6x3": 231.16,
-            "6x4": 290.06,
-            "6x5": 348.96,
-            "6x6": 407.85,
+          // Pricing Table
+              const prices = {
+                "1x1": 26.94,
+                "1x2": 39.57,
+                "1x3": 52.20,
+                "1x4": 64.83,
+                "1x5": 77.46,
+                "1x6": 90.09,
+                "2x1": 44.23,
+                "2x2": 66.11,
+                "2x3": 87.99,
+                "2x4": 109.88,
+                "2x5": 131.76,
+                "2x6": 153.64,
+                "3x1": 61.51,
+                "3x2": 92.65,
+                "3x3": 123.79,
+                "3x4": 154.92,
+                "3x5": 186.06,
+                "3x6": 217.20,
+                "4x1": 78.80,
+                "4x2": 119.19,
+                "4x3": 159.58,
+                "4x4": 199.97,
+                "4x5": 240.36,
+                "4x6": 280.75,
+                "5x1": 96.08,
+                "5x2": 145.73,
+                "5x3": 195.37,
+                "5x4": 245.01,
+                "5x5": 294.66,
+                "5x6": 344.30,
+                "6x1": 113.37,
+                "6x2": 172.26,
+                "6x3": 231.16,
+                "6x4": 290.06,
+                "6x5": 348.96,
+                "6x6": 407.85,
+              };
+
+          let lastRequested = "";
+
+          function updateImage() {
+
+            const key = cols.value + "x" + rows.value;
+            const filename = key + ".png";
+            const fullPath = "images/" + filename;
+
+            lastRequested = fullPath;
+
+            // Update image
+            image.src = fullPath;
+
+            // Update debug
+            debug.textContent = fullPath;
+
+            // Update price
+            if (prices[key]) {
+              priceText.textContent = prices[key].toFixed(2) + "$ CAD";
+              priceText.style.color = "black";
+            } else {
+              priceText.textContent = "contact us";
+              priceText.style.color = "red";
+            }
+
+            // Update quantity
+            quantity.textContent = "contains up to " + cols.value * rows.value * 10 + " cassettes";
+
+          }
+
+          image.onerror = function() {
+            image.src = "images/debug.png";
+            debug.textContent = "images/debug.png (fallback for " + lastRequested + ")";
+            debug.style.color = "red";
           };
 
-      let lastRequested = "";
+          image.onload = function() {
+            debug.style.color = "green";
+          };
 
-      function updateImage() {
+          cols.addEventListener("input", updateImage);
+          rows.addEventListener("input", updateImage);
 
-        const key = cols.value + "x" + rows.value;
-        const filename = key + ".png";
-        const fullPath = "images/" + filename;
+          // Custom stepper buttons
+            document.querySelectorAll(".stepbtn").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const input = document.getElementById(btn.dataset.target);
+                const step = parseInt(btn.dataset.step);
 
-        lastRequested = fullPath;
+                let value = parseInt(input.value) + step;
 
-        // Update image
-        image.src = fullPath;
+                const min = parseInt(input.min);
+                const max = parseInt(input.max);
 
-        // Update debug
-        debug.textContent = fullPath;
+                value = Math.max(min, Math.min(max, value));
 
-        // Update price
-        if (prices[key]) {
-          priceText.textContent = prices[key].toFixed(2) + "$ CAD";
-          priceText.style.color = "black";
-        } else {
-          priceText.textContent = "contact us";
-          priceText.style.color = "red";
-        }
+                input.value = value;
 
-        // Update quantity
-        quantity.textContent = "contains up to " + cols.value * rows.value * 10 + " cassettes";
+                // Trigger your existing logic
+                input.dispatchEvent(new Event("input"));
+              });
+            });
 
-      }
+          updateImage();
 
-      image.onerror = function() {
-        image.src = "images/debug.png";
-        debug.textContent = "images/debug.png (fallback for " + lastRequested + ")";
-        debug.style.color = "red";
-      };
 
-      image.onload = function() {
-        debug.style.color = "green";
-      };
+          const video = document.querySelector(".circledivVideo");
 
-      cols.addEventListener("input", updateImage);
-      rows.addEventListener("input", updateImage);
+            video.muted = true;
+            video.playsInline = true;
 
-      // Custom stepper buttons
-        document.querySelectorAll(".stepbtn").forEach(btn => {
-          btn.addEventListener("click", () => {
-            const input = document.getElementById(btn.dataset.target);
-            const step = parseInt(btn.dataset.step);
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  // Restart and play when visible
+                  video.currentTime = 0;
+                  video.play();
+                } else {
+                  // Pause and reset when out of view
+                  video.pause();
+                  video.currentTime = 0;
+                }
+              });
+            }, {
+              threshold: 0.6  // 60% of video must be visible
+            });
 
-            let value = parseInt(input.value) + step;
+            observer.observe(video);
 
-            const min = parseInt(input.min);
-            const max = parseInt(input.max);
-
-            value = Math.max(min, Math.min(max, value));
-
-            input.value = value;
-
-            // Trigger your existing logic
-            input.dispatchEvent(new Event("input"));
-          });
         });
-
-      updateImage();
-
-    });
-</script>
+    </script>
 
 </body>
+
 </html>

@@ -16,7 +16,8 @@ body {
 
 		font-family: vag;
 		color: black;
-		-webkit-text-stroke: 0px transparent;
+		-webkit-text-stroke: 5px white;
+	    paint-order: stroke fill;
 		font-size: clamp(11px, 2vw, 2vw);
 		margin-top: 1px;
 		margin-bottom: 1px;
@@ -49,6 +50,34 @@ body {
 
 	    width: 100vw;
 	    z-index: 100;
+	}
+
+	.headerA {
+	    display: flex;
+	    justify-content: space-between;
+
+	    position: sticky;
+	    top: 0;
+
+	    width: 100vw;
+	    z-index: 100;
+	}
+
+	.headerA a,p {
+	    display: block;
+
+	    margin: 10px;
+	    margin-left: 25px;
+	    margin-right: 20px;
+
+	    font-family: "vag";
+	    font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
+
+	    color: white;
+	    text-decoration: none;
+
+	    -webkit-text-stroke: 4px black;
+	    paint-order: stroke fill;
 	}
 
 	.header a, p {
@@ -131,7 +160,7 @@ body {
 	.circlediv h3{
 		width: 60%;
 		justify-self: center;
-		font-size: calc(6px + 1cqw);
+		font-size: calc(6px + 0.7cqw);
 	}
 
 	.circlediv h4{
@@ -143,7 +172,6 @@ body {
 	.ovaldiv{
 		display: flex;
 		position: relative;
-		overflow: hidden;
 		text-align: center;
 		width: 100%;
 		aspect-ratio: 16/8;
@@ -157,9 +185,31 @@ body {
 		background-color: transparent;
 
 		border-radius: 50%;
-		border: 1.5px solid black;
 
 		font-family: "vag";
+	}
+
+	.ovaldiv::after{
+	    content: "";
+	    position: absolute;
+	    inset: 0;
+	    border-radius: 50%;
+	    box-shadow: inset 0 0 0 1.5px black;
+	    pointer-events: none;
+	}
+
+	.circlemask{
+	    position: absolute;
+	    inset: 0;
+	    border-radius: 50%;
+	    overflow: hidden;
+	    height: 100%;
+	    width: auto;
+	}
+
+	.circledivVideo{
+		height: 100%;
+		width: auto;
 	}
 
 	.dottedBox{
