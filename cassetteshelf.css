@@ -237,6 +237,7 @@ body {
 		border-radius: 10px;
 
 		font-size: calc(10px + 1cqw);
+		text-decoration: none;
 		color: white;
 		background-color: black;
 	}
