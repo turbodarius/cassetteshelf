@@ -121,10 +121,12 @@ body {
 		display: flex;
 		position: relative;
 		overflow: hidden;
-		text-align: center;
 		width: 100%;
 		aspect-ratio: 1/1;
+
 		justify-content: center;
+		text-align: center;
+		align-items: center;
 
 		flex: 1;
 		margin: 30px;
@@ -150,23 +152,22 @@ body {
 
 	.circlediv div{
 		position: relative;
-		margin: auto;
 
 		color: black;
-
 		height: auto;
 	}
 
 	.circlediv h3{
-		width: 60%;
 		justify-self: center;
-		font-size: calc(6px + 0.7cqw);
+		font-size: calc(6px + 0.7vw);
+		width: 60%;
+		margin-left: auto;
+    	margin-right: auto;
 	}
 
 	.circlediv h4{
-		width: 60%;
 		justify-self: center;
-		font-size: calc(3px + 1cqw);
+		font-size: calc(3px + 1vw);
 	}
 
 	.ovaldiv{
@@ -224,19 +225,19 @@ body {
 /* Shop stuff */
 
 	.price{
-		font-size: calc(6px + 2cqw);
+		font-size: calc(6px + 2vw);
 	}
 
 	.button {
-		display: flex;
+		display: inline-block;
 		justify-self: center;
 		justify-content: space-evenly;
 
-		width: 10cqw;
+		width: 10vw;
 		padding: 10px;
 		border-radius: 10px;
 
-		font-size: calc(10px + 1cqw);
+		font-size: calc(10px + 1vw);
 		text-decoration: none;
 		color: white;
 		background-color: black;
@@ -269,7 +270,7 @@ body {
     gap: 5px;
     color: black;
     font-family: "vag";
-    font-size: calc(10px + 1.2cqw);
+    font-size: calc(10px + 1.2vw);
 	}
 
 	.stepper input{
@@ -278,7 +279,7 @@ body {
     text-align: center;
     padding-top: 2%;
 
-    font-size: calc(10px + 1.2cqw);
+    font-size: calc(10px + 1.2vw);
     font-family: "vag";
 
     border: 1.5px solid black;

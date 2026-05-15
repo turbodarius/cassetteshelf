@@ -12,47 +12,47 @@
         <link rel="preload" type="image" href="images/v5.mp4">
         <link rel="preload" type="image" href="images/anim1.mp4">
 
-        <link rel="preload" type="image" href="images/1x1.png">
-        <link rel="preload" type="image" href="images/1x2.png">
-        <link rel="preload" type="image" href="images/1x3.png">
-        <link rel="preload" type="image" href="images/1x4.png">
-        <link rel="preload" type="image" href="images/1x5.png">
-        <link rel="preload" type="image" href="images/1x6.png">
+        <link rel="preload" type="image" href="images/thumbs/1x1.png">
+        <link rel="preload" type="image" href="images/thumbs/1x2.png">
+        <link rel="preload" type="image" href="images/thumbs/1x3.png">
+        <link rel="preload" type="image" href="images/thumbs/1x4.png">
+        <link rel="preload" type="image" href="images/thumbs/1x5.png">
+        <link rel="preload" type="image" href="images/thumbs/1x6.png">
 
-        <link rel="preload" type="image" href="images/2x1.png">
-        <link rel="preload" type="image" href="images/2x2.png">
-        <link rel="preload" type="image" href="images/2x3.png">
-        <link rel="preload" type="image" href="images/2x4.png">
-        <link rel="preload" type="image" href="images/2x5.png">
-        <link rel="preload" type="image" href="images/2x6.png">
+        <link rel="preload" type="image" href="images/thumbs/2x1.png">
+        <link rel="preload" type="image" href="images/thumbs/2x2.png">
+        <link rel="preload" type="image" href="images/thumbs/2x3.png">
+        <link rel="preload" type="image" href="images/thumbs/2x4.png">
+        <link rel="preload" type="image" href="images/thumbs/2x5.png">
+        <link rel="preload" type="image" href="images/thumbs/2x6.png">
 
-        <link rel="preload" type="image" href="images/3x1.png">
-        <link rel="preload" type="image" href="images/3x2.png">
-        <link rel="preload" type="image" href="images/3x3.png">
-        <link rel="preload" type="image" href="images/3x4.png">
-        <link rel="preload" type="image" href="images/3x5.png">
-        <link rel="preload" type="image" href="images/3x6.png">
+        <link rel="preload" type="image" href="images/thumbs/3x1.png">
+        <link rel="preload" type="image" href="images/thumbs/3x2.png">
+        <link rel="preload" type="image" href="images/thumbs/3x3.png">
+        <link rel="preload" type="image" href="images/thumbs/3x4.png">
+        <link rel="preload" type="image" href="images/thumbs/3x5.png">
+        <link rel="preload" type="image" href="images/thumbs/3x6.png">
 
-        <link rel="preload" type="image" href="images/4x1.png">
-        <link rel="preload" type="image" href="images/4x2.png">
-        <link rel="preload" type="image" href="images/4x3.png">
-        <link rel="preload" type="image" href="images/4x4.png">
-        <link rel="preload" type="image" href="images/4x5.png">
-        <link rel="preload" type="image" href="images/4x6.png">
+        <link rel="preload" type="image" href="images/thumbs/4x1.png">
+        <link rel="preload" type="image" href="images/thumbs/4x2.png">
+        <link rel="preload" type="image" href="images/thumbs/4x3.png">
+        <link rel="preload" type="image" href="images/thumbs/4x4.png">
+        <link rel="preload" type="image" href="images/thumbs/4x5.png">
+        <link rel="preload" type="image" href="images/thumbs/4x6.png">
 
-        <link rel="preload" type="image" href="images/5x1.png">
-        <link rel="preload" type="image" href="images/5x2.png">
-        <link rel="preload" type="image" href="images/5x3.png">
-        <link rel="preload" type="image" href="images/5x4.png">
-        <link rel="preload" type="image" href="images/5x5.png">
-        <link rel="preload" type="image" href="images/5x6.png">
+        <link rel="preload" type="image" href="images/thumbs/5x1.png">
+        <link rel="preload" type="image" href="images/thumbs/5x2.png">
+        <link rel="preload" type="image" href="images/thumbs/5x3.png">
+        <link rel="preload" type="image" href="images/thumbs/5x4.png">
+        <link rel="preload" type="image" href="images/thumbs/5x5.png">
+        <link rel="preload" type="image" href="images/thumbs/5x6.png">
 
-        <link rel="preload" type="image" href="images/6x1.png">
-        <link rel="preload" type="image" href="images/6x2.png">
-        <link rel="preload" type="image" href="images/6x3.png">
-        <link rel="preload" type="image" href="images/6x4.png">
-        <link rel="preload" type="image" href="images/6x5.png">
-        <link rel="preload" type="image" href="images/6x6.png">
+        <link rel="preload" type="image" href="images/thumbs/6x1.png">
+        <link rel="preload" type="image" href="images/thumbs/6x2.png">
+        <link rel="preload" type="image" href="images/thumbs/6x3.png">
+        <link rel="preload" type="image" href="images/thumbs/6x4.png">
+        <link rel="preload" type="image" href="images/thumbs/6x5.png">
+        <link rel="preload" type="image" href="images/thumbs/6x6.png">
 
 </head>
 
@@ -246,7 +246,7 @@
 
             const key = cols.value + "x" + rows.value;
             const filename = key + ".png";
-            const fullPath = "images/" + filename;
+            const fullPath = "images/thumbs/" + filename;
 
             lastRequested = fullPath;
 
@@ -282,8 +282,8 @@
           }
 
           image.onerror = function() {
-            image.src = "images/debug.png";
-            debug.textContent = "images/debug.png (fallback for " + lastRequested + ")";
+            image.src = "images/thumbs/debug.png";
+            debug.textContent = "images/thumbs/debug.png (fallback for " + lastRequested + ")";
             debug.style.color = "red";
           };
 
