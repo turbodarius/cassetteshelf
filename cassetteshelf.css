@@ -140,6 +140,26 @@ body {
 		font-family: "vag";
 	}
 
+	.typflexBox{
+		display: flex;
+		position: relative;
+		overflow: hidden;
+		height: 100%;
+		aspect-ratio: 1/1;
+
+		justify-content: center;
+		text-align: center;
+		align-items: center;
+
+		flex: 1;
+		margin: 0px;
+		min-width: 400px;
+
+		background-color: transparent;
+
+		font-family: "vag";
+	}
+
 	.circlediv img{
 		position: relative;
 
