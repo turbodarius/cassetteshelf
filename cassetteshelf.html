@@ -140,7 +140,7 @@
                     <br>
                     <p class="paragraph1">all plates have 2 bendable</p>
                     <p class="paragraph1">tabs to stabilise the shelf</p>
-                    <p class="paragraph1">on the floor.</p>
+                    <p class="paragraph1">on the floor.</p>br
                     <p class="paragraph1">shelves with a height of 3+ should be wall-mounted.</p>
                 </div>
             </div>
@@ -248,7 +248,7 @@
 
         	</div>
         	<div class="circlediv">
-        		<img id="productImage" src="images/1x1.jpg">
+        		<img id="productImage" src="images/thumbs/1x1.jpg">
         	</div>
         </div>
     </section>
@@ -262,7 +262,9 @@
         </div>
 
         <div class="typflex">
-        	<div class="circlediv"></div>
+        	<div class="circlediv">
+                <img id="dimensionImage" src="images/thumbs_dim/1x1_dim.png">   
+            </div>
         	<div class="circlediv"></div>
             <div class="circlediv"></div>
         </div>
@@ -278,6 +280,7 @@
     const cols = document.getElementById("cols");
     const rows = document.getElementById("rows");
     const image = document.getElementById("productImage");
+    const dimensionImage = document.getElementById("dimensionImage");
     const debug = document.getElementById("filenameDebug") || {};
     const priceText = document.getElementById("priceText");
     const quantity = document.getElementById("quantity");
@@ -291,6 +294,7 @@
       const fullPath = "images/thumbs/" + filename;
       lastRequested = fullPath;
       image.src = fullPath;
+      dimensionImage.src = "images/thumbs_dim/" + key + "_dim" + ".png";
       debug.textContent = fullPath;
 
       if (prices[key]) {
