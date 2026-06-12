@@ -190,6 +190,14 @@ body {
 		font-size: calc(3px + 1vw);
 	}
 
+	.circlediv p{
+		justify-self: center;
+
+		color: black;
+		font-size: calc(10px + 0.7vw);
+		-webkit-text-stroke: 0px transparent;
+	}
+
 	.ovaldiv{
 		display: flex;
 		position: relative;

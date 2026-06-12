@@ -68,9 +68,9 @@
         </div>
 
         <div>
-	        <video class="videohero" poster="images/videoposter.jpg" autoplay loop muted playsinline>
-	            <source src="images/v5.mp4" type="video/mp4">
-	        </video>
+            <video class="videohero" poster="images/videoposter.jpg" autoplay loop muted playsinline>
+                <source src="images/v5.mp4" type="video/mp4">
+            </video>
         </div>
 
         <div style="position: absolute; bottom: 0px;">
@@ -210,15 +210,15 @@
         </div>
 
         <div class="typflex">
-        	<div class="circlediv" style="background-color: black;">
+            <div class="circlediv" style="background-color: black;">
 
-        		<div>
-        			<h3 style="color: white;">all shelves are powdercoated with a glossy white finish and black hardware.</h3>
-        			<h3 style="color: white;">for custom colors, oversized orders and special requests, contact us.</h3>
-        			<h3 style="color: white;">contact@cassetteshelf.com</h3>
+                <div>
+                    <h3 style="color: white;">all shelves are powdercoated with a glossy white finish and black hardware.</h3>
+                    <h3 style="color: white;">for custom colors, oversized orders and special requests, contact us.</h3>
+                    <h3 style="color: white;">contact@cassetteshelf.com</h3>
 
                     <div class="dottedBox" style="background-color: white;">
-            			<div class="controlgroup">
+                        <div class="controlgroup">
 
                             <div class="stepper">
                                 <span>columns</span>
@@ -236,20 +236,20 @@
 
                         </div>
 
-    					<h2 class="price" id="priceText">26.94$ CAD</h2>
-    					<h4 id="quantity">contains 10 cassettes</h3>
+                        <h2 class="price" id="priceText">26.94$ CAD</h2>
+                        <h4 id="quantity">contains 10 cassettes</h3>
 
-    					<br>
+                        <br>
 
-    					<a class="button" id="addToCartBtn" href="#" target="_blank">add to cart</a>
+                        <a class="button" id="addToCartBtn" href="#" target="_blank">add to cart</a>
                     </div>
 
-				</div>
+                </div>
 
-        	</div>
-        	<div class="circlediv">
-        		<img id="productImage" src="images/thumbs/1x1.jpg">
-        	</div>
+            </div>
+            <div class="circlediv">
+                <img id="productImage" src="images/thumbs/1x1.jpg">
+            </div>
         </div>
     </section>
 
@@ -262,11 +262,22 @@
         </div>
 
         <div class="typflex">
-        	<div class="circlediv">
+            <div class="circlediv">
                 <img id="dimensionImage" src="images/thumbs_dim/1x1_dim.png">   
             </div>
-        	<div class="circlediv"></div>
-            <div class="circlediv"></div>
+            <div class="circlediv">
+                <img id="quantityImage" src="images/thumbs_qty/1x1_qty.png">   
+            </div>
+            <div class="circlediv">
+                <div>
+                    <p style="-webkit-text-stroke: 1px black;">DISCLAIMER</p>
+                    <p>All parts made in Canada, USA and China.</p>
+                    <p>Shelves ship disassembled from Montréal, Canada.</p>
+                    <p>Box includes wall mounting brackets, tools and instruction manual.</p>
+                    <p>For any questions / issues, reach us at contact@cassetteshelf.com</p>
+                    <p></p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -281,6 +292,7 @@
     const rows = document.getElementById("rows");
     const image = document.getElementById("productImage");
     const dimensionImage = document.getElementById("dimensionImage");
+    const quantityImage = document.getElementById("quantityImage");
     const debug = document.getElementById("filenameDebug") || {};
     const priceText = document.getElementById("priceText");
     const quantity = document.getElementById("quantity");
@@ -295,6 +307,7 @@
       lastRequested = fullPath;
       image.src = fullPath;
       dimensionImage.src = "images/thumbs_dim/" + key + "_dim" + ".png";
+      quantityImage.src = "images/thumbs_qty/" + key + "_qty" + ".png";
       debug.textContent = fullPath;
 
       if (prices[key]) {
