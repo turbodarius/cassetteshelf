@@ -60,8 +60,16 @@
 
 <body>
 
+    <div class="overlayBox" id="overlayBox">
+        <p class="overlay" id="startupOverlay">click to initialize</p>
+    </div>
+
     <!-- Top Header -->
     <section class="panel">
+        <div class="headerB" style="height: 0;">
+            <a href="">cassetteshelf.com</a>
+            <a>2026</a>
+        </div>
         <div class="headerA" style="height: 0;">
             <a href="">cassetteshelf.com</a>
             <a>2026</a>
@@ -85,12 +93,25 @@
             <p class="paragraph1">however many cassette slots you may need,</p>
             <p class="paragraph1">now or in the future, our system grows with you.</p>
         </div>
+        <div style="position: absolute; bottom: 0px;">
+            <p class="paragraph2">cassetteshelf.com makes audio cassette shelves.</p>
+            <br>
+            <p class="paragraph2">these shelves are made from glossy white powder coated</p>
+            <p class="paragraph2">aluminum plates and steel struts</p>
+            <p class="paragraph2">fastened together using black-oxide hardware.</p>
+            <p class="paragraph2">these shelves are made to order using a simple</p>
+            <p class="paragraph2">price calculator, no rounding up, no price gouging.</p>
+            <p class="paragraph2">the price is the total cost +30%.</p>
+            <p class="paragraph2">however many cassette slots you may need,</p>
+            <p class="paragraph2">now or in the future, our system grows with you.</p>
+        </div>
+
     </section>
 
     <!-- Load bearing invisible header -->
     <section class="panel">
         <div class="header">
-            <p style="-webkit-text-stroke: transparent">a</p>
+            <p style="-webkit-text-stroke: unset">a</p>
         </div>
     </section>
 
@@ -118,6 +139,13 @@
                 <p class="paragraph1">as well as an instruction manual,</p>
                 <p class="paragraph1">are provided.</p>
             </div>
+            <div style="position: absolute; bottom: 10%; right: 0px; text-align: right;">
+                <p class="paragraph2">all shelves are shipped disassembled.</p>
+                <br>
+                <p class="paragraph2">all tools for assembly,</p>
+                <p class="paragraph2">as well as an instruction manual,</p>
+                <p class="paragraph2">are provided.</p>
+            </div>
         </div>
     </section>
 
@@ -143,6 +171,14 @@
                     <p class="paragraph1">on the floor.</p>br
                     <p class="paragraph1">shelves with a height of 3+ should be wall-mounted.</p>
                 </div>
+                <div style="position: absolute; bottom: 10%; left: 0px; text-align: left;">
+                    <p class="paragraph2">hand-bendable feet tabs:</p>
+                    <br>
+                    <p class="paragraph2">all plates have 2 bendable</p>
+                    <p class="paragraph2">tabs to stabilise the shelf</p>
+                    <p class="paragraph2">on the floor.</p>br
+                    <p class="paragraph2">shelves with a height of 3+ should be wall-mounted.</p>
+                </div>
             </div>
 
             <div class="typflexBox">
@@ -158,6 +194,14 @@
                     <p class="paragraph1">the appropriate amount</p>
                     <p class="paragraph1">of brackets and screws</p>
                     <p class="paragraph1">for wall mounting.</p>
+                </div>
+                <div style="position: absolute; top: 10%; right: 0px; text-align: right;">
+                    <p class="paragraph2">wall brackets:</p>
+                    <br>
+                    <p class="paragraph2">all shelves come with</p>
+                    <p class="paragraph2">the appropriate amount</p>
+                    <p class="paragraph2">of brackets and screws</p>
+                    <p class="paragraph2">for wall mounting.</p>
                 </div>
             </div>
         </div>
@@ -376,6 +420,40 @@
     }, {
       threshold: 0.6
     });
+
+    // Safari / Mobile autoplay unlock
+        const overlay = document.getElementById("startupOverlay");
+        const overlayBox = document.getElementById("overlayBox");
+
+        let websiteStarted = false;
+
+        function startWebsite() {
+
+            // Prevent running twice
+            if (websiteStarted) return;
+            websiteStarted = true;
+
+            // Unlock all videos
+            document.querySelectorAll("video").forEach(v => {
+                v.play().catch(() => {});
+            });
+
+            // Hide overlay
+            overlay?.classList.add("hidden");
+            overlayBox?.classList.add("hidden");
+
+            setTimeout(() => {
+                overlay?.remove();
+                overlayBox?.remove();
+            }, 500);
+
+            // Remove listeners
+            document.removeEventListener("click", startWebsite);
+            document.removeEventListener("touchstart", startWebsite);
+        }
+
+        document.addEventListener("click", startWebsite);
+        document.addEventListener("touchstart", startWebsite);
 
     document.querySelectorAll("video").forEach(video => {
       if (video === headerVideo) return; // skip the hero
