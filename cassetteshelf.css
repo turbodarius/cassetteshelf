@@ -50,11 +50,16 @@ body {
 	}
 
 	.overlay{
+
 		position: fixed;
 		text-align: center;
 
-		top: 40%;
-		left: 28%;
+		font-family: vag;
+		font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
+		color: transparent;
+
+		top: 32%;
+		left: 32%;
 
 		-webkit-text-stroke: 2px white;
 		z-index: 99999999999;
@@ -92,7 +97,8 @@ body {
 	    width: 100vw;
 	    z-index: 100;
 	}
-		.headerB {
+
+	.headerB {
 	    display: flex;
 	    justify-content: space-between;
 
@@ -103,7 +109,8 @@ body {
 	    z-index: 100;
 	}
 
-	.headerA a,p {
+	/* FIXED: was ".headerA a, p" which targeted every p on the page */
+	.headerA a, .headerA p {
 	    display: block;
 
 	    margin: 10px;
@@ -120,7 +127,8 @@ body {
 	    z-index: 0;
 	}
 
-	.headerB a,p {
+	/* FIXED: was ".headerB a, p" which targeted every p on the page */
+	.headerB a, .headerB p {
 	    display: block;
 
 	    margin: 10px;
@@ -135,7 +143,8 @@ body {
 	    z-index: 1;
 	}
 
-	.header a, p {
+	/* FIXED: was ".header a, p" which targeted every p on the page */
+	.header a, .header p {
 	    display: block;
 
 	    margin: 10px;
@@ -302,7 +311,6 @@ body {
 
 		border: 1.5px dotted black;
 		border-radius: 5%;
-
 	}
 
 /* Shop stuff */
