@@ -64,7 +64,7 @@ body {
 		transform: translate(-50%, -50%);
 		width: 90vw;
 
-		-webkit-text-stroke: 2px white;
+		-webkit-text-stroke: 0.025em white;
 		z-index: 99999999999;
 	}
 
@@ -126,7 +126,7 @@ body {
 	    color: transparent;
 	    text-decoration: none;
 
-	    -webkit-text-stroke: 1.5px black;
+	    -webkit-text-stroke: 0.01875em black;
 	    z-index: 0;
 	}
 
@@ -160,7 +160,7 @@ body {
 	    color: transparent;
 	    text-decoration: none;
 
-	    -webkit-text-stroke: 1.5px black;
+	    -webkit-text-stroke: 0.01875em black;
 	    paint-order: stroke fill;
 	}
 
@@ -417,8 +417,9 @@ body {
 		.typflexBox,
 		.ovaldiv {
 			min-width: 0;
-			width: 100%;
-			margin: 15px 0;
+			box-sizing: border-box;
+			width: calc(100% - 45px);
+			margin: 15px 20px 15px 25px;
 		}
 
 		.header,
