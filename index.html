@@ -29,48 +29,6 @@
         <link rel="preload" type="image" href="images/feetanim.mp4">
         <link rel="preload" type="image" href="images/wallanim.mp4">
 
-        <link rel="preload" type="image" href="images/thumbs/1x1.png">
-        <link rel="preload" type="image" href="images/thumbs/1x2.png">
-        <link rel="preload" type="image" href="images/thumbs/1x3.png">
-        <link rel="preload" type="image" href="images/thumbs/1x4.png">
-        <link rel="preload" type="image" href="images/thumbs/1x5.png">
-        <link rel="preload" type="image" href="images/thumbs/1x6.png">
-
-        <link rel="preload" type="image" href="images/thumbs/2x1.png">
-        <link rel="preload" type="image" href="images/thumbs/2x2.png">
-        <link rel="preload" type="image" href="images/thumbs/2x3.png">
-        <link rel="preload" type="image" href="images/thumbs/2x4.png">
-        <link rel="preload" type="image" href="images/thumbs/2x5.png">
-        <link rel="preload" type="image" href="images/thumbs/2x6.png">
-
-        <link rel="preload" type="image" href="images/thumbs/3x1.png">
-        <link rel="preload" type="image" href="images/thumbs/3x2.png">
-        <link rel="preload" type="image" href="images/thumbs/3x3.png">
-        <link rel="preload" type="image" href="images/thumbs/3x4.png">
-        <link rel="preload" type="image" href="images/thumbs/3x5.png">
-        <link rel="preload" type="image" href="images/thumbs/3x6.png">
-
-        <link rel="preload" type="image" href="images/thumbs/4x1.png">
-        <link rel="preload" type="image" href="images/thumbs/4x2.png">
-        <link rel="preload" type="image" href="images/thumbs/4x3.png">
-        <link rel="preload" type="image" href="images/thumbs/4x4.png">
-        <link rel="preload" type="image" href="images/thumbs/4x5.png">
-        <link rel="preload" type="image" href="images/thumbs/4x6.png">
-
-        <link rel="preload" type="image" href="images/thumbs/5x1.png">
-        <link rel="preload" type="image" href="images/thumbs/5x2.png">
-        <link rel="preload" type="image" href="images/thumbs/5x3.png">
-        <link rel="preload" type="image" href="images/thumbs/5x4.png">
-        <link rel="preload" type="image" href="images/thumbs/5x5.png">
-        <link rel="preload" type="image" href="images/thumbs/5x6.png">
-
-        <link rel="preload" type="image" href="images/thumbs/6x1.png">
-        <link rel="preload" type="image" href="images/thumbs/6x2.png">
-        <link rel="preload" type="image" href="images/thumbs/6x3.png">
-        <link rel="preload" type="image" href="images/thumbs/6x4.png">
-        <link rel="preload" type="image" href="images/thumbs/6x5.png">
-        <link rel="preload" type="image" href="images/thumbs/6x6.png">
-
 </head>
 
 <body>
@@ -314,7 +272,7 @@
             const image = document.getElementById("productImage");
             const dimensionImage = document.getElementById("dimensionImage");
             const quantityImage = document.getElementById("quantityImage");
-            const debug = document.getElementById("filenameDebug") || {};
+            const debug = document.getElementById("filenameDebug") || { style: {} };
             const priceText = document.getElementById("priceText");
             const quantity = document.getElementById("quantity");
             const addToCartBtn = document.getElementById("addToCartBtn");
@@ -326,12 +284,19 @@
                 const filename = key + ".png";
                 const fullPath = "images/thumbs/" + filename;
                 lastRequested = fullPath;
+
+                image.style.opacity = "0";
                 image.src = fullPath;
                 image.alt = "Preview of a " + key + " cassette shelf";
+
+                dimensionImage.style.opacity = "0";
                 dimensionImage.src = "images/thumbs_dim/" + key + "_dim" + ".png";
                 dimensionImage.alt = "Dimensions diagram for a " + key + " cassette shelf";
+
+                quantityImage.style.opacity = "0";
                 quantityImage.src = "images/thumbs_qty/" + key + "_qty" + ".png";
                 quantityImage.alt = "Cassette capacity diagram for a " + key + " cassette shelf";
+
                 debug.textContent = fullPath;
 
                 if (prices[key]) {
@@ -363,6 +328,15 @@
 
             image.onload = function() {
                 debug.style.color = "green";
+                image.style.opacity = "1";
+            };
+
+            dimensionImage.onload = function() {
+                dimensionImage.style.opacity = "1";
+            };
+
+            quantityImage.onload = function() {
+                quantityImage.style.opacity = "1";
             };
 
             cols.addEventListener("input", updateImage);
@@ -382,6 +356,30 @@
             });
 
             updateImage();
+
+            // Warm the browser cache for every configurator combo in idle
+            // time (after the page has already loaded) so switching rows/
+            // columns feels instant instead of popping in over the network.
+            function prefetchConfiguratorImages() {
+                for (let c = 1; c <= 6; c++) {
+                    for (let r = 1; r <= 6; r++) {
+                        const key = c + "x" + r;
+                        [
+                            "images/thumbs/" + key + ".png",
+                            "images/thumbs_dim/" + key + "_dim.png",
+                            "images/thumbs_qty/" + key + "_qty.png",
+                        ].forEach(src => { new Image().src = src; });
+                    }
+                }
+            }
+
+            window.addEventListener("load", () => {
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(prefetchConfiguratorImages);
+                } else {
+                    setTimeout(prefetchConfiguratorImages, 200);
+                }
+            });
 
             // --- Intersection Observer for ALL videos except the header ---
             const headerVideo = document.querySelector(".videohero");

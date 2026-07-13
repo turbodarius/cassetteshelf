@@ -235,6 +235,8 @@ body {
 
 		width: auto;
 		height: 100%;
+
+		transition: opacity 0.12s ease;
 	}
 
 	.circlediv div{
