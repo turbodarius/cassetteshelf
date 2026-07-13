@@ -1,11 +1,25 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>cassetteshelf.com</title>
+    <title>cassetteshelf.com | Custom Modular Audio Cassette Shelves</title>
     <link rel="stylesheet" href="cassetteshelf.css">
-    <meta name="description" content="cassetteshelf official website">
+    <meta name="description" content="Made-to-order audio cassette shelves in glossy white powder-coated aluminum with black-oxide hardware. Simple sizing, transparent pricing, no gouging.">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="canonical" href="https://cassetteshelf.com/">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+    <!-- Open Graph / Twitter -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="cassetteshelf.com">
+    <meta property="og:url" content="https://cassetteshelf.com/">
+    <meta property="og:title" content="cassetteshelf.com | Custom Modular Audio Cassette Shelves">
+    <meta property="og:description" content="Made-to-order audio cassette shelves in glossy white powder-coated aluminum with black-oxide hardware. Simple sizing, transparent pricing, no gouging.">
+    <meta property="og:image" content="https://cassetteshelf.com/images/photo1.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="cassetteshelf.com | Custom Modular Audio Cassette Shelves">
+    <meta name="twitter:description" content="Made-to-order audio cassette shelves in glossy white powder-coated aluminum with black-oxide hardware. Simple sizing, transparent pricing, no gouging.">
+    <meta name="twitter:image" content="https://cassetteshelf.com/images/photo1.jpg">
 
     <!-- Preloads (Do not forget to update when updating images!) -->
 
@@ -256,7 +270,7 @@
 
             </div>
             <div class="circlediv">
-                <img id="productImage" src="images/thumbs/1x1.jpg">
+                <img id="productImage" src="images/thumbs/1x1.jpg" alt="Preview of a 1x1 cassette shelf">
             </div>
         </div>
     </section>
@@ -271,10 +285,10 @@
 
         <div class="typflex">
             <div class="circlediv">
-                <img id="dimensionImage" src="images/thumbs_dim/1x1_dim.png">   
+                <img id="dimensionImage" src="images/thumbs_dim/1x1_dim.png" alt="Dimensions diagram for a 1x1 cassette shelf">
             </div>
             <div class="circlediv">
-                <img id="quantityImage" src="images/thumbs_qty/1x1_qty.png">   
+                <img id="quantityImage" src="images/thumbs_qty/1x1_qty.png" alt="Cassette capacity diagram for a 1x1 cassette shelf">
             </div>
             <div class="circlediv">
                 <div>
@@ -313,8 +327,11 @@
                 const fullPath = "images/thumbs/" + filename;
                 lastRequested = fullPath;
                 image.src = fullPath;
+                image.alt = "Preview of a " + key + " cassette shelf";
                 dimensionImage.src = "images/thumbs_dim/" + key + "_dim" + ".png";
+                dimensionImage.alt = "Dimensions diagram for a " + key + " cassette shelf";
                 quantityImage.src = "images/thumbs_qty/" + key + "_qty" + ".png";
+                quantityImage.alt = "Cassette capacity diagram for a " + key + " cassette shelf";
                 debug.textContent = fullPath;
 
                 if (prices[key]) {
