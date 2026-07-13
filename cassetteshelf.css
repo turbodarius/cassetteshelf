@@ -1,7 +1,8 @@
-body {    
+body {
     color: white;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
 }
 
 /* Comment */
@@ -58,8 +59,10 @@ body {
 		font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
 		color: transparent;
 
-		top: 32%;
-		left: 32%;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 90vw;
 
 		-webkit-text-stroke: 2px white;
 		z-index: 99999999999;
@@ -324,7 +327,7 @@ body {
 		justify-self: center;
 		justify-content: space-evenly;
 
-		width: 10vw;
+		width: clamp(120px, 10vw, 220px);
 		padding: 10px;
 		border-radius: 10px;
 
@@ -399,4 +402,28 @@ body {
 
 	.stepbtn:active{
 	    transform: scale(0.95);
+	}
+
+/* Mobile layout fixes: .circlediv / .typflexBox / .ovaldiv use a 400px
+   min-width tuned for desktop, which overflows narrow phone screens and
+   forces horizontal scrolling. Relax it below that breakpoint. */
+	@media (max-width: 440px) {
+		.typflex {
+			flex-direction: column;
+			align-items: center;
+		}
+
+		.circlediv,
+		.typflexBox,
+		.ovaldiv {
+			min-width: 0;
+			width: 100%;
+			margin: 15px 0;
+		}
+
+		.header,
+		.headerA,
+		.headerB {
+			flex-wrap: wrap;
+		}
 	}
