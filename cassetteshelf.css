@@ -413,13 +413,23 @@ body {
 			align-items: center;
 		}
 
-		.circlediv,
-		.typflexBox,
-		.ovaldiv {
+		.typflex > .circlediv,
+		.typflex > .typflexBox,
+		.typflex > .ovaldiv {
 			min-width: 0;
 			box-sizing: border-box;
 			width: calc(100% - 45px);
 			margin: 15px 20px 15px 25px;
+		}
+
+		/* .circlediv nested inside .typflexBox (mounting/options section)
+		   should just fill its parent, which already got the edge inset
+		   above -- otherwise it gets shrunk twice and ends up smaller
+		   than every other section's circle. */
+		.typflexBox > .circlediv {
+			min-width: 0;
+			width: 100%;
+			margin: 0;
 		}
 
 		.header,
