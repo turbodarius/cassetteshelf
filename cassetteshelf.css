@@ -1,8 +1,7 @@
-body {
+body {    
     color: white;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
 }
 
 /* Comment */
@@ -16,7 +15,7 @@ body {
 	.paragraph1 {
 		font-family: vag;
 		color: white;
-		-webkit-text-stroke: 0.174em white;
+		-webkit-text-stroke: 5px white;
 	    paint-order: stroke fill;
 		font-size: clamp(11px, 2vw, 2vw);
 		margin-top: 1px;
@@ -59,12 +58,10 @@ body {
 		font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
 		color: transparent;
 
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 90vw;
+		top: 32%;
+		left: 32%;
 
-		-webkit-text-stroke: 0.025em white;
+		-webkit-text-stroke: 2px white;
 		z-index: 99999999999;
 	}
 
@@ -126,7 +123,7 @@ body {
 	    color: transparent;
 	    text-decoration: none;
 
-	    -webkit-text-stroke: 0.01875em black;
+	    -webkit-text-stroke: 1.5px black;
 	    z-index: 0;
 	}
 
@@ -160,7 +157,7 @@ body {
 	    color: transparent;
 	    text-decoration: none;
 
-	    -webkit-text-stroke: 0.01875em black;
+	    -webkit-text-stroke: 1.5px black;
 	    paint-order: stroke fill;
 	}
 
@@ -235,8 +232,6 @@ body {
 
 		width: auto;
 		height: 100%;
-
-		transition: opacity 0.12s ease;
 	}
 
 	.circlediv div{
@@ -257,6 +252,7 @@ body {
 	.circlediv h4{
 		justify-self: center;
 		font-size: calc(3px + 1vw);
+		color: white;
 	}
 
 	.circlediv p{
@@ -313,15 +309,13 @@ body {
 	.dottedBox{
 		display: inline-block;
 		padding: 3%;
-
-		border: 1.5px dotted black;
-		border-radius: 5%;
 	}
 
 /* Shop stuff */
 
 	.price{
 		font-size: calc(6px + 2vw);
+		color: white;
 	}
 
 	.button {
@@ -329,14 +323,14 @@ body {
 		justify-self: center;
 		justify-content: space-evenly;
 
-		width: clamp(120px, 10vw, 220px);
+		width: 10vw;
 		padding: 10px;
 		border-radius: 10px;
 
 		font-size: calc(10px + 1vw);
 		text-decoration: none;
-		color: white;
-		background-color: black;
+		color: black;
+		background-color: white;
 	}
 
 /* Button override stuff */
@@ -364,7 +358,8 @@ body {
     display: flex;
     align-items: center;
     gap: 5px;
-    color: black;
+    background-color: black;
+    color: white;
     font-family: "vag";
     font-size: calc(10px + 1.2vw);
 	}
@@ -389,8 +384,8 @@ body {
     border-radius: 50%;
     border: 1.5px solid black;
 
-    background: black;
-    color: white;
+    background: white;
+    color: black;
 
     font-size: 1.5rem;
     line-height: 0;
@@ -404,39 +399,4 @@ body {
 
 	.stepbtn:active{
 	    transform: scale(0.95);
-	}
-
-/* Mobile layout fixes: .circlediv / .typflexBox / .ovaldiv use a 400px
-   min-width tuned for desktop, which overflows narrow phone screens and
-   forces horizontal scrolling. Relax it below that breakpoint. */
-	@media (max-width: 440px) {
-		.typflex {
-			flex-direction: column;
-			align-items: center;
-		}
-
-		.typflex > .circlediv,
-		.typflex > .typflexBox,
-		.typflex > .ovaldiv {
-			min-width: 0;
-			box-sizing: border-box;
-			width: calc(100% - 45px);
-			margin: 15px 20px 15px 25px;
-		}
-
-		/* .circlediv nested inside .typflexBox (mounting/options section)
-		   should just fill its parent, which already got the edge inset
-		   above -- otherwise it gets shrunk twice and ends up smaller
-		   than every other section's circle. */
-		.typflexBox > .circlediv {
-			min-width: 0;
-			width: 100%;
-			margin: 0;
-		}
-
-		.header,
-		.headerA,
-		.headerB {
-			flex-wrap: wrap;
-		}
 	}
