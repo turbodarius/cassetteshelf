@@ -208,7 +208,7 @@
     </section>
 
     <!-- Store section header and section -->
-    <section class="panel">
+    <section class="panel" id="purchaseSection">
         <div class="header">
             <a href="">build your own now</a>
             <a>from 17.25 USD</a>
@@ -218,10 +218,10 @@
             <div class="circlediv">
                 <img id="productImage" src="images/thumbs/1x1.png" alt="Preview of a 1x1 cassette shelf">
             </div>
-            <div class="circlediv" style="background-color: black;">
+            <div class="circlediv purchaseCircle">
 
                 <div>
-                    <div class="dottedBox" style="background-color: black;">
+                    <div class="dottedBox purchaseCircle">
                         <div class="controlgroup">
 
                             <div class="stepper">
@@ -299,6 +299,7 @@
             const cols = document.getElementById("cols");
             const rows = document.getElementById("rows");
             const formatToggle = document.getElementById("formatToggle");
+            const purchaseSection = document.getElementById("purchaseSection");
             const image = document.getElementById("productImage");
             const dimensionImage = document.getElementById("dimensionImage");
             const quantityImage = document.getElementById("quantityImage");
@@ -312,6 +313,7 @@
             function updateImage() {
                 const key = cols.value + "x" + rows.value;
                 const isCD = formatToggle.checked;
+                purchaseSection.classList.toggle("cd-mode", isCD);
                 const suffix = isCD ? "CD" : "";
                 const shelfType = isCD ? "CD shelf" : "cassette shelf";
                 const itemType = isCD ? "CDs" : "cassettes";

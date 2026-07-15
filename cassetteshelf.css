@@ -312,6 +312,24 @@ body {
 		width: auto;
 	}
 
+	.purchaseCircle {
+		background-color: black;
+	}
+
+	/* When the CD-shelf checkbox is toggled, everything that's black in
+	   the purchase widget (the two nested circles plus the stepper/input
+	   borders) switches to navy instead, as a color cue distinguishing
+	   the two product modes. */
+	#purchaseSection.cd-mode .purchaseCircle {
+		background-color: navy;
+	}
+
+	#purchaseSection.cd-mode .dottedBox,
+	#purchaseSection.cd-mode .stepbtn,
+	#purchaseSection.cd-mode .stepper input {
+		border-color: navy;
+	}
+
 	.dottedBox{
 		display: inline-block;
 		padding: 3%;
