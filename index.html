@@ -225,6 +225,13 @@
                         <div class="controlgroup">
 
                             <div class="stepper">
+                                <label style="color:white; display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                    <input type="checkbox" id="formatToggle" style="width:20px; height:20px;">
+                                    switch to cd shelf
+                                </label>
+                            </div>
+
+                            <div class="stepper">
                                 <span style="color:white;">columns</span>
                                 <button class="stepbtn" data-target="cols" data-step="-1">−</button>
                                 <input type="number" id="cols" min="1" max="10" value="1">
@@ -284,12 +291,14 @@
     <!-- Javascript Section -->
 
     <script src="prices.js"></script>
+    <script src="pricesCD.js"></script>
     <script src="shopifyLinks.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
             const cols = document.getElementById("cols");
             const rows = document.getElementById("rows");
+            const formatToggle = document.getElementById("formatToggle");
             const image = document.getElementById("productImage");
             const dimensionImage = document.getElementById("dimensionImage");
             const quantityImage = document.getElementById("quantityImage");
@@ -302,33 +311,39 @@
 
             function updateImage() {
                 const key = cols.value + "x" + rows.value;
-                const filename = key + ".png";
+                const isCD = formatToggle.checked;
+                const suffix = isCD ? "CD" : "";
+                const shelfType = isCD ? "CD shelf" : "cassette shelf";
+                const itemType = isCD ? "CDs" : "cassettes";
+
+                const filename = key + suffix + ".png";
                 const fullPath = "images/thumbs/" + filename;
                 lastRequested = fullPath;
 
                 image.style.opacity = "0";
                 image.src = fullPath;
-                image.alt = "Preview of a " + key + " cassette shelf";
+                image.alt = "Preview of a " + key + " " + shelfType;
 
                 dimensionImage.style.opacity = "0";
-                dimensionImage.src = "images/thumbs_dim/" + key + "_dim" + ".png";
-                dimensionImage.alt = "Dimensions diagram for a " + key + " cassette shelf";
+                dimensionImage.src = "images/thumbs_dim/" + key + "_dim" + suffix + ".png";
+                dimensionImage.alt = "Dimensions diagram for a " + key + " " + shelfType;
 
                 quantityImage.style.opacity = "0";
-                quantityImage.src = "images/thumbs_qty/" + key + "_qty" + ".png";
-                quantityImage.alt = "Cassette capacity diagram for a " + key + " cassette shelf";
+                quantityImage.src = "images/thumbs_qty/" + key + "_qty" + suffix + ".png";
+                quantityImage.alt = (isCD ? "CD" : "Cassette") + " capacity diagram for a " + key + " " + shelfType;
 
                 debug.textContent = fullPath;
 
-                if (prices[key]) {
-                    priceText.textContent = prices[key].toFixed(2) + "$ CAD";
+                const activePrices = isCD ? (typeof pricesCD !== "undefined" ? pricesCD : {}) : prices;
+                if (activePrices[key]) {
+                    priceText.textContent = activePrices[key].toFixed(2) + "$ CAD";
                     priceText.style.color = "white";
                 } else {
                     priceText.textContent = "contact us";
                     priceText.style.color = "red";
                 }
 
-                quantity.textContent = "contains up to " + cols.value * rows.value * 10 + " cassettes";
+                quantity.textContent = "contains up to " + cols.value * rows.value * 10 + " " + itemType;
 
                 if (shopifyLinks[key]) {
                     addToCartBtn.href = shopifyLinks[key];
@@ -362,6 +377,7 @@
 
             cols.addEventListener("input", updateImage);
             rows.addEventListener("input", updateImage);
+            formatToggle.addEventListener("change", updateImage);
 
             document.querySelectorAll(".stepbtn").forEach(btn => {
                 btn.addEventListener("click", () => {

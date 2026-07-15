@@ -324,8 +324,9 @@ body {
 		   sharply right where the layout switches from 1 to 2 columns per
 		   row, ~940-1000px), so this value was chosen as the largest scale
 		   that still fits at that narrowest point, not just at the
-		   mobile/desktop extremes. */
-		transform: scale(1.15);
+		   mobile/desktop extremes. Re-verified (and lowered from 1.15) after
+		   the CD-format checkbox row added extra content height. */
+		transform: scale(0.95);
 	}
 
 /* Shop stuff */
@@ -463,12 +464,12 @@ body {
 		}
 	}
 
-	/* Below ~360px (older/small phones) even the universal 1.15 scale
+	/* Below ~360px (older/small phones) even the universal 0.95 scale
 	   pushes the purchase-circle content's corners past the circle's
 	   edge, since the circle itself is already at its smallest here.
-	   Fall back to no extra scale rather than clip. */
+	   Scale down further rather than clip. */
 	@media (max-width: 360px) {
 		.dottedBox {
-			transform: scale(1);
+			transform: scale(0.85);
 		}
 	}
