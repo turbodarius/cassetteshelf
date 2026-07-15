@@ -317,6 +317,14 @@ body {
 
 		border: 1.5px dotted black;
 		border-radius: 5%;
+
+		/* Scales the whole purchase-circle content uniformly. The circle's
+		   own size isn't a simple function of viewport width (it jumps down
+		   sharply right where the layout switches from 1 to 2 columns per
+		   row, ~940-1000px), so this value was chosen as the largest scale
+		   that still fits at that narrowest point, not just at the
+		   mobile/desktop extremes. */
+		transform: scale(1.15);
 	}
 
 /* Shop stuff */
@@ -373,9 +381,9 @@ body {
 
 	.stepper input{
     width: 95%;
-    height: 10%;
     text-align: center;
-    padding-top: 2%;
+    padding: 0.3em 0.2em;
+    line-height: 1;
 
     font-size: calc(10px + 1.2vw);
     font-family: "vag";
@@ -406,6 +414,17 @@ body {
 
 	.stepbtn:active{
 	    transform: scale(0.95);
+	}
+
+	/* The "vag" font draws "-" higher within its own line box than "+",
+	   so flex-centering the line box leaves the minus glyph looking
+	   visually off-center. Nudge just that glyph down to compensate. */
+	.stepbtn[data-step="-1"]{
+	    transform: translateY(1.6px);
+	}
+
+	.stepbtn[data-step="-1"]:active{
+	    transform: translateY(1.6px) scale(0.95);
 	}
 
 /* Mobile layout fixes: .circlediv / .typflexBox / .ovaldiv use a 400px
@@ -440,5 +459,15 @@ body {
 		.headerA,
 		.headerB {
 			flex-wrap: wrap;
+		}
+	}
+
+	/* Below ~360px (older/small phones) even the universal 1.15 scale
+	   pushes the purchase-circle content's corners past the circle's
+	   edge, since the circle itself is already at its smallest here.
+	   Fall back to no extra scale rather than clip. */
+	@media (max-width: 360px) {
+		.dottedBox {
+			transform: scale(1);
 		}
 	}
