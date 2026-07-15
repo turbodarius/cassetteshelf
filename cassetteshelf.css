@@ -54,6 +54,7 @@ body {
 
 		position: fixed;
 		text-align: center;
+		margin: 0;
 
 		font-family: vag;
 		font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
