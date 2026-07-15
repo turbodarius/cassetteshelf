@@ -225,13 +225,6 @@
                         <div class="controlgroup">
 
                             <div class="stepper">
-                                <label style="color:white; display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                    <input type="checkbox" id="formatToggle" style="width:20px; height:20px;">
-                                    switch to cd shelf
-                                </label>
-                            </div>
-
-                            <div class="stepper">
                                 <span style="color:white;">columns</span>
                                 <button class="stepbtn" data-target="cols" data-step="-1">−</button>
                                 <input type="number" id="cols" min="1" max="10" value="1">
@@ -243,6 +236,13 @@
                                 <button class="stepbtn" data-target="rows" data-step="-1">−</button>
                                 <input type="number" id="rows" min="1" max="10" value="1">
                                 <button class="stepbtn" data-target="rows" data-step="1">+</button>
+                            </div>
+
+                            <div class="stepper">
+                                <label style="color:white; display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                    <input type="checkbox" id="formatToggle" style="width:20px; height:20px;">
+                                    cd shelf
+                                </label>
                             </div>
 
                         </div>
