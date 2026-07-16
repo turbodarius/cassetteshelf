@@ -318,8 +318,8 @@
                 const shelfType = isCD ? "CD shelf" : "cassette shelf";
                 const itemType = isCD ? "CDs" : "cassettes";
 
-                const filename = key + suffix + ".png";
-                const fullPath = "images/thumbs/" + filename;
+                const productDir = isCD ? "images/cd/thumbs/" : "images/thumbs/";
+                const fullPath = productDir + key + ".png";
                 lastRequested = fullPath;
 
                 image.style.opacity = "0";
@@ -407,6 +407,7 @@
                             "images/thumbs/" + key + ".png",
                             "images/thumbs_dim/" + key + "_dim.png",
                             "images/thumbs_qty/" + key + "_qty.png",
+                            "images/cd/thumbs/" + key + ".png",
                         ].forEach(src => { new Image().src = src; });
                     }
                 }
