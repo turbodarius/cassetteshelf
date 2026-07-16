@@ -1,4 +1,4 @@
-const prices = {
+const pricesCD = {
 
 	"1x1": 26.94,
 	"1x2": 39.57,
