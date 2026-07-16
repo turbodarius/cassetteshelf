@@ -346,7 +346,8 @@
                     priceText.style.color = "red";
                 }
 
-                quantity.textContent = "contains up to " + cols.value * rows.value * 10 + " " + itemType;
+                const perModule = isCD ? 16 : 10;
+                quantity.textContent = "contains up to " + cols.value * rows.value * perModule + " " + itemType;
 
                 if (shopifyLinks[key]) {
                     addToCartBtn.href = shopifyLinks[key];
