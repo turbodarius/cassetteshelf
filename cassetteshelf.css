@@ -208,6 +208,31 @@ body {
 		font-family: "vag";
 	}
 
+	.squarediv{
+		position: relative;
+		overflow: hidden;
+		width: 100%;
+		aspect-ratio: 1/1;
+
+		justify-content: left;
+		text-align: left;
+		align-items: top;
+
+		flex: 1;
+		box-sizing: border-box;
+		margin: 30px;
+		min-width: 400px;
+		padding: 10%;
+		padding-top: 6%;
+
+		background-color: transparent;
+
+		border-radius: 5%;
+		border: 1.5px solid black;
+
+		font-family: "vag";
+	}
+
 	.typflexBox{
 		display: flex;
 		position: relative;
@@ -228,7 +253,7 @@ body {
 		font-family: "vag";
 	}
 
-	.circlediv img{
+	.circlediv img, .squarediv img{
 		position: relative;
 
 		object-position: center;
@@ -266,6 +291,14 @@ body {
 
 		color: black;
 		font-size: calc(10px + 0.7vw);
+		-webkit-text-stroke: 0px transparent;
+	}
+
+	.squarediv p{
+		justify-self: left;
+
+		color: black;
+		font-size: calc(20px + 0.9vw);
 		-webkit-text-stroke: 0px transparent;
 	}
 
@@ -345,6 +378,36 @@ body {
 		   mobile/desktop extremes. Re-verified (and lowered from 1.15) after
 		   the CD-format checkbox row added extra content height. */
 		transform: scale(0.95);
+	}
+
+	.dlBtn{
+
+		display: inline-block;
+		z-index: 1;
+		margin-right: 2%;
+
+		background-color: black;
+		height: calc(20px + 0.9vw);
+		width: calc(20px + 0.9vw);
+		border-radius: 50%;
+
+		-webkit-text-stroke: 1px black;
+
+	}
+
+	.dlBtn img {
+
+		display: block;
+		z-index: 2;
+		margin: 0%;
+		margin-top: 2%;
+
+		justify-self: center;
+
+		filter: invert(100%);
+		height: 100%;
+		width: 100%;
+
 	}
 
 /* Shop stuff */
@@ -446,6 +509,51 @@ body {
 	.stepbtn[data-step="-1"]:active{
 	    transform: translateY(1.6px) scale(0.95);
 	}
+
+/* Misc */
+
+.footer {
+
+	display: flex;
+	width: 100vw;
+	height: fit-content;
+
+	align-items: flex-end;
+
+	background-color: black;
+	justify-content: space-between;
+}
+
+.footer a {
+
+	font-family: "vag";
+    font-size: calc(10px + 2vw);
+    margin: 1%;
+
+    color: transparent;
+    text-decoration: none;
+
+    -webkit-text-stroke: 0.01875em white;
+    paint-order: stroke fill;
+
+}
+
+.depthNote {
+
+	width: auto;
+	z-index: 1000;
+	font-size: 10cqh;
+
+	position: absolute;
+	font-family: "vag";
+	color: black;
+
+	left: 50%;
+	top: 8%;
+	transform: translate(-50%, -50%);
+
+
+}
 
 /* Mobile layout fixes: .circlediv / .typflexBox / .ovaldiv use a 400px
    min-width tuned for desktop, which overflows narrow phone screens and
