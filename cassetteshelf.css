@@ -128,7 +128,7 @@ body {
 	    text-decoration: none;
 
 	    -webkit-text-stroke: 0.01875em black;
-	    z-index: 0;
+	    z-index: 1000;
 	}
 
 	/* FIXED: was ".headerB a, p" which targeted every p on the page */
@@ -144,7 +144,7 @@ body {
 
 	    color: white;
 	    text-decoration: none;
-	    z-index: 1;
+	    z-index: 1000;
 	}
 
 	/* FIXED: was ".header a, p" which targeted every p on the page */
@@ -158,11 +158,12 @@ body {
 	    font-family: "vag";
 	    font-size: clamp(1.875rem, -0.7292rem + 6.9444vw, 5rem);
 
-	    color: transparent;
+	    color: white;
+	    paint-order: fill stroke;
 	    text-decoration: none;
 
 	    -webkit-text-stroke: 0.01875em black;
-	    paint-order: stroke fill;
+	    z-index: 1000;
 	}
 
 /* CircleDiv Stuff */
@@ -298,7 +299,7 @@ body {
 		justify-self: left;
 
 		color: black;
-		font-size: calc(20px + 0.9vw);
+		font-size: calc(16px + 0.9vw);
 		-webkit-text-stroke: 0px transparent;
 	}
 
