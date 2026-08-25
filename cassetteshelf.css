@@ -230,7 +230,6 @@ body {
 
 		border-radius: 5%;
 		border: 1.5px solid black;
-		transform: scale(0.88,0.88);
 
 		font-family: "vag";
 	}
@@ -589,6 +588,9 @@ body {
 		.headerA,
 		.headerB {
 			flex-wrap: wrap;
+		}
+		.squarediv{
+			transform: scale(0.88,0.88);
 		}
 	}
 
