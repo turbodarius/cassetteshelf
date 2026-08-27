@@ -411,6 +411,12 @@ body {
 
 	}
 
+	.variableFont {
+
+		font-size: 4.5cqw !important;
+
+	}
+
 /* Shop stuff */
 
 	.price{
