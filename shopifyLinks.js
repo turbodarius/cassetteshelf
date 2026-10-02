@@ -28,7 +28,7 @@ const shopifyLinks = {
 	"4x5": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=46170663747781",
 	"4x6": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=46170663780549",
 
-	"5x1": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=461706638133177",
+	"5x1": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=46170663813317",
 	"5x2": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=46170663846085",
 	"5x3": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=46170663878853",
 	"5x4": "https://cassetteshelf-com.myshopify.com/products/cassetteshelf?variant=46170663911621",
