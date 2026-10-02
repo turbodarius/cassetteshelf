@@ -22,6 +22,7 @@
 
     <link rel="manifest" href="/images/site.webmanifest" />
     <link rel="stylesheet" href="cassetteshelf.css">
+    <link rel="stylesheet" href="checkout.css">
     <meta name="description" content="Made-to-order audio cassette shelves in glossy white powder-coated aluminum with black-oxide hardware. Simple sizing, transparent pricing, no gouging.">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -388,7 +389,7 @@
 
                         <br>
 
-                        <a class="button" id="addToCartBtn" href="#" target="_blank">add to cart</a>
+                        <a class="button" id="addToCartBtn" href="#" role="button">add to cart</a>
                     </div>
 
                 </div>
@@ -488,10 +489,158 @@
         </div>
     </section>
 
+    <!-- ================================================================
+         CHECKOUT WINDOW (skeleton)
+         Behaviour lives in checkout.js, styling goes in checkout.css.
+         Restyle and rearrange freely, but keep the ids, `name`s and
+         data-* attributes: checkout.js looks elements up by them.
+         ================================================================ -->
+
+    <!-- Floating cart button, shown only while the cart has items. -->
+    <button type="button" id="cartButton" class="cart-button" hidden>
+        cart (<span data-cart-count>0</span>)
+    </button>
+
+    <dialog id="checkout" class="checkout" aria-labelledby="checkoutTitle">
+        <div class="checkout-panel">
+
+            <header class="checkout-header">
+                <h2 id="checkoutTitle" class="checkout-title">your cart</h2>
+                <button type="button" class="checkout-close" data-checkout-close aria-label="close">×</button>
+            </header>
+
+            <!-- VIEW 1: cart + details + payment -->
+            <form id="checkoutForm" class="checkout-form">
+
+                <section class="checkout-section checkout-cart">
+                    <h3>items</h3>
+                    <ul id="checkoutItems" class="checkout-items"></ul>
+                    <p id="checkoutEmpty" class="checkout-empty" hidden>your cart is empty.</p>
+                </section>
+
+                <!-- Everything below is hidden while the cart is empty. -->
+                <div id="checkoutDetails" class="checkout-details">
+
+                    <section class="checkout-section checkout-contact">
+                        <h3>contact</h3>
+                        <label class="checkout-field">
+                            <span>name</span>
+                            <input name="name" autocomplete="name" required>
+                        </label>
+                        <label class="checkout-field">
+                            <span>email</span>
+                            <input type="email" name="email" autocomplete="email" required>
+                        </label>
+                        <label class="checkout-field">
+                            <span>phone (optional)</span>
+                            <input type="tel" name="phone" autocomplete="tel">
+                        </label>
+                    </section>
+
+                    <section class="checkout-section checkout-address">
+                        <h3>shipping address</h3>
+                        <label class="checkout-field">
+                            <span>country</span>
+                            <select name="country" autocomplete="country" required>
+                                <option value="">choose a country</option>
+                            </select>
+                        </label>
+                        <label class="checkout-field">
+                            <span>address</span>
+                            <input name="line1" autocomplete="address-line1" required>
+                        </label>
+                        <label class="checkout-field">
+                            <span>apartment, suite, etc. (optional)</span>
+                            <input name="line2" autocomplete="address-line2">
+                        </label>
+                        <label class="checkout-field">
+                            <span>city</span>
+                            <input name="city" autocomplete="address-level2" required>
+                        </label>
+                        <label class="checkout-field">
+                            <!-- checkout.js swaps this text to "province" / "state" -->
+                            <span data-state-label>province / state</span>
+                            <select name="state" autocomplete="address-level1" required>
+                                <option value="">choose a country first</option>
+                            </select>
+                        </label>
+                        <label class="checkout-field">
+                            <!-- checkout.js swaps this text to "postal code" / "zip code" -->
+                            <span data-postal-label>postal / zip code</span>
+                            <input name="postal_code" autocomplete="postal-code" required>
+                        </label>
+                    </section>
+
+                    <section class="checkout-section checkout-shipping">
+                        <h3>shipping</h3>
+                        <p id="checkoutShippingHint" class="checkout-hint">choose a country to see shipping options.</p>
+                        <div id="checkoutShippingOptions" class="checkout-shipping-options" role="radiogroup" aria-label="shipping options"></div>
+                    </section>
+
+                    <section class="checkout-section checkout-summary">
+                        <dl class="checkout-totals">
+                            <div class="checkout-row"><dt>subtotal</dt><dd data-total="subtotal"></dd></div>
+                            <div class="checkout-row"><dt>shipping</dt><dd data-total="shipping"></dd></div>
+                            <div class="checkout-row"><dt>tax</dt><dd data-total="tax"></dd></div>
+                            <div class="checkout-row checkout-row-total"><dt>total</dt><dd data-total="total"></dd></div>
+                        </dl>
+                    </section>
+
+                    <section class="checkout-section checkout-payment">
+                        <h3>payment</h3>
+                        <!-- Stripe draws the card / Apple Pay / Google Pay fields in
+                             here (in a secure iframe). Style them with APPEARANCE
+                             at the top of checkout.js, not with CSS. -->
+                        <div id="checkoutPaymentElement" class="checkout-payment-element"></div>
+                    </section>
+
+                    <p id="checkoutMessage" class="checkout-message" role="alert" hidden></p>
+
+                    <button type="submit" id="checkoutPayButton" class="checkout-pay">
+                        pay <span data-pay-total></span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- VIEW 2: shown after a successful payment -->
+            <div id="checkoutSuccess" class="checkout-success" hidden>
+                <h3>thank you!</h3>
+                <p>your order is confirmed. a receipt is on its way to <span data-success-email>your email</span>.</p>
+                <button type="button" class="checkout-done" data-checkout-close>back to the site</button>
+            </div>
+
+        </div>
+    </dialog>
+
+    <!-- One cart row. Cloned by checkout.js for each item in the cart. -->
+    <template id="checkoutItemTemplate">
+        <li class="checkout-item">
+            <img class="checkout-item-image" data-field="image" alt="">
+            <span class="checkout-item-name" data-field="label"></span>
+            <span class="checkout-item-unit" data-field="unit"></span>
+            <span class="checkout-item-qty">
+                <button type="button" data-action="decrease" aria-label="remove one">−</button>
+                <span data-field="quantity"></span>
+                <button type="button" data-action="increase" aria-label="add one">+</button>
+            </span>
+            <span class="checkout-item-total" data-field="total"></span>
+            <button type="button" class="checkout-item-remove" data-action="remove">remove</button>
+        </li>
+    </template>
+
+    <!-- One shipping choice. Cloned by checkout.js for each option of the chosen country. -->
+    <template id="checkoutShippingTemplate">
+        <label class="checkout-shipping-option">
+            <input type="radio" name="shippingRate">
+            <span class="checkout-shipping-label" data-field="label"></span>
+            <span class="checkout-shipping-amount" data-field="amount"></span>
+        </label>
+    </template>
+
     <!-- Javascript Section -->
     <script src="prices.js"></script>
     <script src="pricesCD.js"></script>
-    <script src="shopifyLinks.js"></script>
+    <script src="checkout.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
@@ -548,16 +697,22 @@
                 const perModule = isCD ? 16 : 10;
                 quantity.textContent = "contains up to " + cols.value * rows.value * perModule + " " + itemType;
 
-                if (shopifyLinks[key]) {
-                    addToCartBtn.href = shopifyLinks[key];
+                if (activePrices[key]) {
                     addToCartBtn.style.opacity = "1";
                     addToCartBtn.style.pointerEvents = "auto";
                 } else {
-                    addToCartBtn.href = "#";
                     addToCartBtn.style.opacity = "0.4";
                     addToCartBtn.style.pointerEvents = "none";
                 }
             }
+
+            // Adds the current configuration to the cart and opens the
+            // checkout window (see checkout.js).
+            addToCartBtn.addEventListener("click", (event) => {
+                event.preventDefault();
+                const key = cols.value + "x" + rows.value;
+                cassetteCheckout.add(formatToggle.checked ? "cd" : "cassette", key);
+            });
 
             image.onerror = function() {
                 image.src = "images/thumbs/debug.png";

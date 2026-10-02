@@ -1,0 +1,3 @@
+# Copy to .dev.vars for local testing with `npm run dev`. Never commit .dev.vars.
+STRIPE_SECRET_KEY=sk_test_REPLACE_ME
+STRIPE_WEBHOOK_SECRET=whsec_REPLACE_ME

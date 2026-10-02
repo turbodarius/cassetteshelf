@@ -1,0 +1,15 @@
+name = "cassetteshelf-checkout"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Publishable keys are public; safe to commit. Use pk_test_... while testing.
+STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_ME"
+# Sites allowed to call this worker (comma separated, no trailing slash).
+ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http://localhost:8000"
+
+# Secrets are NOT stored here. Set them with:
+#   npx wrangler secret put STRIPE_SECRET_KEY
+#   npx wrangler secret put STRIPE_WEBHOOK_SECRET
+# For local `wrangler dev`, put them in worker/.dev.vars instead (git-ignored).

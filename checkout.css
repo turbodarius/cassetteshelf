@@ -1,0 +1,67 @@
+/* =====================================================================
+   CHECKOUT WINDOW
+   Markup: index.html (search "CHECKOUT WINDOW"). Behaviour: checkout.js.
+
+   Only the rules the window needs to WORK are below. All visual design
+   is yours. Hooks available:
+
+   .cart-button                 floating "cart (n)" button (hidden when empty)
+   .checkout                    the <dialog>; ::backdrop is the dimmed page
+     .is-loading                  ...while prices/tax are being fetched
+     .is-busy                     ...while a payment is processing
+   .checkout-panel              everything inside the window
+   .checkout-header / -title / -close
+   .checkout-form               view 1: cart, details, payment
+     .checkout-section          each block (+ .checkout-cart, -contact,
+                                -address, -shipping, -summary, -payment)
+     .checkout-items            <ul> of .checkout-item rows:
+       .checkout-item-image / -name / -unit / -qty / -total / -remove
+     .checkout-empty            "your cart is empty"
+     .checkout-details          everything below the item list
+     .checkout-field            a <label> wrapping a <span> + input/select
+     .checkout-hint             "choose a country..." text
+     .checkout-shipping-options / .checkout-shipping-option
+       .checkout-shipping-label / -amount  (input[type=radio] inside)
+     .checkout-totals / .checkout-row / .checkout-row-total  (dt + dd)
+     .checkout-payment-element  Stripe's fields (style via APPEARANCE in checkout.js)
+     .checkout-message          error / info text
+     .checkout-pay              pay button (disabled while busy)
+   .checkout-success            view 2: thank-you message
+     .checkout-done             "back to the site" button
+   ===================================================================== */
+
+/* `hidden` must win over any display rule you add. */
+.checkout [hidden],
+.cart-button[hidden] {
+    display: none !important;
+}
+
+/* Keeps the page behind from scrolling while the window is open. */
+body:has(.checkout[open]) {
+    overflow: hidden;
+}
+
+/* Long carts scroll inside the window instead of overflowing the screen. */
+.checkout {
+    max-height: 100dvh;
+    overflow-y: auto;
+}
+
+/* Above the site's sticky headers. */
+.cart-button {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 100000;
+}
+
+.checkout.is-busy .checkout-pay {
+    pointer-events: none;
+}
+
+/* Starter size so the shelf thumbnails don't render at full resolution.
+   Change freely. */
+.checkout-item-image {
+    width: 80px;
+    height: auto;
+}

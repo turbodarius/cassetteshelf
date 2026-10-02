@@ -359,7 +359,6 @@
     <!-- Javascript Section -->
     <script src="prices.js"></script>
     <script src="pricesCD.js"></script>
-    <script src="shopifyLinks.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
 
@@ -416,12 +415,10 @@
                 const perModule = isCD ? 16 : 10;
                 quantity.textContent = "contains up to " + cols.value * rows.value * perModule + " " + itemType;
 
-                if (shopifyLinks[key]) {
-                    addToCartBtn.href = shopifyLinks[key];
+                if (activePrices[key]) {
                     addToCartBtn.style.opacity = "1";
                     addToCartBtn.style.pointerEvents = "auto";
                 } else {
-                    addToCartBtn.href = "#";
                     addToCartBtn.style.opacity = "0.4";
                     addToCartBtn.style.pointerEvents = "none";
                 }
