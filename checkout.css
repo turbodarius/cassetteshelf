@@ -271,14 +271,14 @@ body:has(.checkout[open]) {
     transform: rotate(-45deg);
 }
 
-/* Pay button: the same pill as "remove", a bit larger. */
+/* Purchase button: the same pill as "remove", a bit larger, inverted. */
 .checkout-pay {
     margin-top: 12px;
     padding: 8px 28px;
     border-radius: 999px;
     border: 1.5px solid black;
-    background: white;
-    color: black;
+    background: black;
+    color: white;
     cursor: pointer;
 }
 
