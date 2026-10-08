@@ -178,6 +178,10 @@ body:has(.checkout[open]) {
     margin-top: 1em;
 }
 
+.checkout-row-total dd {
+    font-weight: bold;
+}
+
 
 
 /* Cart list: no bullet dots or indent. */
