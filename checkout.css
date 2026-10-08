@@ -104,30 +104,81 @@ body:has(.checkout[open]) {
     text-transform: uppercase;
 }
 
-/* Shipping choices: one per line, in three columns (radio | name |
-   price) so every price starts at the same spot. */
-.checkout-shipping-options {
+/* Shipping choices and totals: one shared grid,
+   columns = indent | radio | name | price | rest.
+   Each level below passes the same columns down (subgrid), so the
+   names / labels and the prices form two straight columns. */
+.checkout-pricing {
     display: grid;
-    grid-template-columns: auto auto 1fr;
-    column-gap: 8px;
+    grid-template-columns: var(--checkout-indent) auto auto auto 1fr;
+    /* Inside a grid, the heading's top margin no longer overlaps the last
+       field's 12px bottom margin; this keeps the usual gap above "Shipping". */
+    margin-top: -12px;
+}
+
+.checkout-pricing > section,
+.checkout-shipping-options,
+.checkout-totals {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+}
+
+.checkout-pricing h3 {
+    grid-column: 1 / -1;
+}
+
+.checkout-pricing .checkout-hint {
+    grid-column: 2 / -1;
+    margin-left: 0;
+}
+
+/* One shipping choice per line: radio | name | price. */
+.checkout-shipping-options {
     row-gap: 8px;
 }
 
 .checkout-shipping-option {
     display: grid;
-    grid-column: 1 / -1;
+    grid-column: 2 / span 3;
     grid-template-columns: subgrid;
     align-items: center;
     cursor: pointer;
 }
 
-.checkout-shipping-amount {
-    margin-left: 16px;   /* space between the longest name and the prices */
+.checkout-shipping-option input {
+    margin: 0 8px 0 0;
 }
 
-.checkout-shipping-option input {
+/* Space between the longest name and the prices. */
+.checkout-shipping-label,
+.checkout-totals dt {
+    padding-right: 24px;
+}
+
+/* Subtotal / Shipping / Total: label under the shipping names, amount
+   under the shipping prices. */
+.checkout-totals {
+    margin: 16px 0 0;
+    row-gap: 4px;
+}
+
+.checkout-row {
+    display: grid;
+    grid-column: 3 / span 2;
+    grid-template-columns: subgrid;
+}
+
+.checkout-totals dd {
     margin: 0;
 }
+
+/* A blank line before Total. */
+.checkout-row-total {
+    margin-top: 1em;
+}
+
+
 
 /* Cart list: no bullet dots or indent. */
 .checkout-items {
@@ -193,7 +244,6 @@ body:has(.checkout[open]) {
 }
 
 .checkout-field,
-.checkout-shipping-options,
 .checkout-hint {
     margin-left: var(--checkout-indent);
 }
