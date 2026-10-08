@@ -81,8 +81,10 @@ markup) and adds tax to the total once the address is complete. Set it back to
 
 ## Changing shipping rates or prices
 
-- **Shipping:** edit `src/shipping.js` (amounts in cents, CAD).
-  Adding a country also needs its provinces/states in `REGIONS` in `../checkout.js`.
+- **Shipping:** edit `src/shipping.js` (amounts in cents, CAD). Countries use
+  their two-letter ISO code (`FR`, `GB`, `DE`, ...). New countries just work: the
+  province/state field only appears for countries listed in `REGIONS` in
+  `../checkout.js` (Canada and the US).
 - **Prices:** edit `prices.js` / `pricesCD.js` on the site **and** `src/catalog.js`.
 
 Then:

@@ -65,9 +65,19 @@ export function countryList() {
   return Object.entries(SHIPPING_RATES).map(([code, c]) => ({ code, name: c.name }));
 }
 
+// Countries whose addresses need a province/state. Other countries are
+// shipped to without one (the checkout window hides that field for them).
+const COUNTRIES_WITH_STATES = ["CA", "US"];
+
+function needsState(country) {
+  return COUNTRIES_WITH_STATES.includes(country);
+}
+
 // Enough of an address for Stripe Tax to compute an accurate rate.
 export function hasTaxableAddress(address) {
-  return Boolean(address?.country && address?.postal_code && address?.state);
+  return Boolean(
+    address?.country && address?.postal_code && (address?.state || !needsState(address.country)),
+  );
 }
 
 // Compact "format:size:qty" summary for PaymentIntent metadata
@@ -97,9 +107,12 @@ export function validateCheckoutDetails({ name, email, address }) {
   if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     throw new OrderError("please enter a valid email");
   }
-  for (const field of ["line1", "city", "state", "postal_code", "country"]) {
+  for (const field of ["line1", "city", "postal_code", "country"]) {
     if (!address[field]) {
       throw new OrderError("please complete your shipping address");
     }
+  }
+  if (needsState(address.country) && !address.state) {
+    throw new OrderError("please complete your shipping address");
   }
 }

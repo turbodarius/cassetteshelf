@@ -19,6 +19,7 @@
      .checkout-empty            "your cart is empty"
      .checkout-details          everything below the item list
      .checkout-field            a <label> wrapping a <span> + input/select
+       [data-state-field]         province/state field, hidden for countries without one
      .checkout-hint             "choose a country..." text
      .checkout-shipping-options / .checkout-shipping-option
        .checkout-shipping-label / -amount  (input[type=radio] inside)

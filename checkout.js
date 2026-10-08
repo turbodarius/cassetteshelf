@@ -43,8 +43,9 @@
     const MAX_QUANTITY = 20;  // keep in sync with worker/src/pricing.js
     const CART_KEY = "cassetteshelf-cart";
 
-    // Province / state lists for the countries we ship to. The worker's
-    // shipping.js decides which countries are offered.
+    // Province / state lists. The worker's shipping.js decides which
+    // countries are offered; a country without an entry here simply gets
+    // no province/state field.
     const REGIONS = {
         CA: {
             stateLabel: "province",
@@ -433,6 +434,11 @@
         const select = form.elements.state;
         const previous = select.value;
 
+        // Only shown (and required) for countries with a list.
+        const showField = !country || Boolean(region);
+        els.stateField.hidden = !showField;
+        select.required = showField;
+
         select.replaceChildren(new Option(region ? "choose a " + region.stateLabel : "choose a country first", ""));
         if (region) {
             for (const [code, name] of Object.entries(region.options)) {
@@ -441,7 +447,7 @@
             select.value = region.options[previous] ? previous : "";
         }
         els.stateLabel.textContent = region ? region.stateLabel : "province / state";
-        els.postalLabel.textContent = region ? region.postalLabel : "postal / zip code";
+        els.postalLabel.textContent = region ? region.postalLabel : (country ? "postal code" : "postal / zip code");
     }
 
     function renderShippingOptions() {
@@ -561,6 +567,7 @@
             payTotal: document.querySelector("[data-pay-total]"),
             success: document.getElementById("checkoutSuccess"),
             successEmail: document.querySelector("[data-success-email]"),
+            stateField: document.querySelector("[data-state-field]"),
             stateLabel: document.querySelector("[data-state-label]"),
             postalLabel: document.querySelector("[data-postal-label]"),
             itemTemplate: document.getElementById("checkoutItemTemplate"),

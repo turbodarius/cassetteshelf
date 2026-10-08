@@ -557,7 +557,9 @@
                             <span>city</span>
                             <input name="city" autocomplete="address-level2" required>
                         </label>
-                        <label class="checkout-field">
+                        <!-- data-state-field: hidden by checkout.js for countries
+                             without a province/state list (REGIONS in checkout.js) -->
+                        <label class="checkout-field" data-state-field>
                             <!-- checkout.js swaps this text to "province" / "state" -->
                             <span data-state-label>province / state</span>
                             <select name="state" autocomplete="address-level1" required>

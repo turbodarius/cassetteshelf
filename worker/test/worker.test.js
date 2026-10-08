@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import Stripe from "stripe";
 import worker from "../src/index.js";
 import { FORMATS } from "../src/catalog.js";
+import { SHIPPING_RATES } from "../src/shipping.js";
 
 const env = {
   STRIPE_SECRET_KEY: "sk_test_fake",
@@ -259,4 +260,27 @@ test("default (COLLECT_TAX unset) is no tax", async () => {
   const { COLLECT_TAX, ...unset } = env;
   const config = await (await call("/config", { method: "GET", workerEnv: unset })).json();
   assert.equal(config.taxEnabled, false);
+});
+
+test("countries without provinces/states (e.g. a newly added FR) can check out", async () => {
+  SHIPPING_RATES.FR = { name: "France", options: [{ id: "standard", label: "standard", amount: 4000 }] };
+  try {
+    const address = { line1: "1 rue de Rivoli", city: "Paris", postal_code: "75001", country: "FR" };
+    const res = await call("/checkout", {
+      body: { items: cart, address, name: "A", email: "t@example.com" },
+      workerEnv: noTaxEnv,
+    });
+    assert.equal(res.status, 200);
+    const pi = stripeCalls.find((c) => c.path === "/v1/payment_intents").params;
+    assert.equal(Number(pi.get("amount")), subtotal + 4000);
+
+    // CA/US still require one.
+    const noState = await call("/checkout", {
+      body: { items: cart, address: { ...ADDRESS, state: undefined }, name: "A", email: "t@example.com" },
+      workerEnv: noTaxEnv,
+    });
+    assert.equal(noState.status, 400);
+  } finally {
+    delete SHIPPING_RATES.FR;
+  }
 });
