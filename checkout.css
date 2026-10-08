@@ -48,6 +48,7 @@ body:has(.checkout[open]) {
 .checkout {
     --checkout-screen-gap: clamp(16px, 5vw, 64px);
     --checkout-padding: clamp(16px, 3vw, 40px);
+    --checkout-border: 3px;
 
     box-sizing: border-box;
     width: calc(100vw - 2 * var(--checkout-screen-gap));
@@ -57,6 +58,7 @@ body:has(.checkout[open]) {
     margin: auto;
     padding: var(--checkout-padding);
     overflow-y: auto;
+    border: var(--checkout-border) solid black;
     border-radius: 24px;
 
     font-family: "vag", sans-serif;
@@ -85,6 +87,18 @@ body:has(.checkout[open]) {
 
 .checkout-title {
     font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+    text-transform: capitalize;   /* "Your Cart" */
+    /* With line-height 1 and this small pull-up (the space vag leaves
+       above its capitals), the top of the letters lines up with the top
+       of the × button. */
+    margin-top: -0.03em;
+    line-height: 1;
+}
+
+/* Section names and field labels start with a capital letter. */
+.checkout-section h3::first-letter,
+.checkout-field > span::first-letter {
+    text-transform: uppercase;
 }
 
 /* Cart list: no bullet dots or indent. */
@@ -171,10 +185,11 @@ body:has(.checkout[open]) {
     max-width: 28rem;
 }
 
-/* Fields: small rounded corners. */
+/* Fields: small rounded corners, thin pale border. */
 .checkout-field input,
 .checkout-field select {
     border-radius: 6px;
+    border: 1px solid #b3b3b3;
 }
 
 /* Round buttons (− + and ×), matching the configurator's .stepbtn.
@@ -224,6 +239,7 @@ body:has(.checkout[open]) {
 /* The × is a + turned 45°, so it matches the + exactly. */
 .checkout-close-icon {
     display: block;
+    font-size: 2rem;
     transform: rotate(45deg);
 }
 
@@ -231,7 +247,7 @@ body:has(.checkout[open]) {
    window scrolls. */
 .checkout-close {
     position: fixed;
-    top: calc(var(--checkout-screen-gap) + var(--checkout-padding));
-    right: calc(var(--checkout-screen-gap) + var(--checkout-padding));
+    top: calc(var(--checkout-screen-gap) + var(--checkout-border) + var(--checkout-padding));
+    right: calc(var(--checkout-screen-gap) + var(--checkout-border) + var(--checkout-padding));
     z-index: 1;
 }
