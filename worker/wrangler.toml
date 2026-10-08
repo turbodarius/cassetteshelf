@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Publishable keys are public; safe to commit. Use pk_test_... while testing.
-STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_ME"
+STRIPE_PUBLISHABLE_KEY = "pk_live_51UIzH9RBz4TLJ6m3ym1Atp6CtThp1CAZPioMlV5VCPxVuHwXYp1ZcyI2i6TBDFWbW4nkUzt0VAD6ZugsmxmTFQIF000r1ZIGfz"
 # Sites allowed to call this worker (comma separated, no trailing slash).
 ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http://localhost:8000"
 # "true" adds sales tax with Stripe Tax (see README). Anything else: no tax,
