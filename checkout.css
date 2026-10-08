@@ -104,18 +104,25 @@ body:has(.checkout[open]) {
     text-transform: uppercase;
 }
 
-/* Shipping choices: one per line. */
+/* Shipping choices: one per line, in three columns (radio | name |
+   price) so every price starts at the same spot. */
 .checkout-shipping-options {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    column-gap: 8px;
+    row-gap: 8px;
 }
 
 .checkout-shipping-option {
-    display: flex;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
     align-items: center;
-    gap: 8px;
     cursor: pointer;
+}
+
+.checkout-shipping-amount {
+    margin-left: 16px;   /* space between the longest name and the prices */
 }
 
 .checkout-shipping-option input {
