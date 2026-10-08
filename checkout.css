@@ -79,9 +79,40 @@ body:has(.checkout[open]) {
     pointer-events: none;
 }
 
-/* Starter size so the shelf thumbnails don't render at full resolution.
-   Change freely. */
+/* ---- Design ----------------------------------------------------------- */
+
+.checkout-title {
+    font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+}
+
+/* Cart list: no bullet dots or indent. */
+.checkout-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Shelf thumbnail in a circle, like the configurator's preview. */
 .checkout-item-image {
     width: 80px;
-    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1.5px solid black;
+    vertical-align: middle;
+}
+
+/* One field per line, label above its input. */
+.checkout-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.checkout-field input,
+.checkout-field select {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 28rem;
 }
