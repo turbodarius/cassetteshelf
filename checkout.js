@@ -160,6 +160,10 @@
             setupPromise = Promise.all([api("GET", "/config"), loadStripeJs()])
                 .then(([cfg]) => {
                     config = cfg;
+                    // Hides the tax line when the worker isn't collecting tax.
+                    document.querySelectorAll("[data-tax-only]").forEach((el) => {
+                        el.hidden = !config.taxEnabled;
+                    });
                     renderCountries();
                     mountPayment();
                 })

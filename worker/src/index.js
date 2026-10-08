@@ -7,7 +7,7 @@
 //   POST /webhook   Stripe webhook: records the tax transaction once paid
 //
 // Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
-// Vars (wrangler.toml): STRIPE_PUBLISHABLE_KEY, ALLOWED_ORIGINS
+// Vars (wrangler.toml): STRIPE_PUBLISHABLE_KEY, ALLOWED_ORIGINS, COLLECT_TAX
 
 import Stripe from "stripe";
 import { CURRENCY, TAX_CODE } from "./catalog.js";
@@ -44,12 +44,16 @@ export default {
           publishableKey: env.STRIPE_PUBLISHABLE_KEY,
           currency: CURRENCY,
           countries: countryList(),
+          taxEnabled: taxEnabled(env),
         };
       } else if (url.pathname === "/quote" && request.method === "POST") {
-        const quote = await buildQuote(stripeClient(env), await request.json(), false);
+        const quote = await buildQuote(stripeClient(env), await request.json(), {
+          complete: false,
+          collectTax: taxEnabled(env),
+        });
         body = publicQuote(quote);
       } else if (url.pathname === "/checkout" && request.method === "POST") {
-        body = await createCheckout(stripeClient(env), await request.json());
+        body = await createCheckout(stripeClient(env), await request.json(), taxEnabled(env));
       } else {
         return json({ error: "not found" }, 404, cors);
       }
@@ -64,15 +68,21 @@ export default {
   },
 };
 
+// COLLECT_TAX = "true" in wrangler.toml turns on Stripe Tax.
+function taxEnabled(env) {
+  return env.COLLECT_TAX === "true";
+}
+
 function stripeClient(env) {
   return new Stripe(env.STRIPE_SECRET_KEY, {
     httpClient: Stripe.createFetchHttpClient(),
   });
 }
 
-// Prices the cart from the request. With requireTax, an address Stripe
-// Tax can't use is an error; otherwise the quote simply has no tax yet.
-async function buildQuote(stripe, body, requireTax) {
+// Prices the cart from the request. With `complete`, a missing address
+// (or one Stripe Tax can't use) is an error; otherwise the quote simply
+// has no total yet. Without `collectTax`, total = items + shipping.
+async function buildQuote(stripe, body, { complete, collectTax }) {
   const lines = priceItems(body?.items);
   const subtotal = lines.reduce((sum, l) => sum + l.amount, 0);
   const address = cleanAddress(body?.address);
@@ -90,15 +100,21 @@ async function buildQuote(stripe, body, requireTax) {
   };
 
   if (!address.country) {
-    if (requireTax) throw new OrderError("please choose a country");
+    if (complete) throw new OrderError("please choose a country");
     return quote;
   }
 
   quote.shippingOptions = shippingOptionsFor(address.country);
   quote.shippingRate = selectShipping(address.country, body?.shippingRateId);
 
+  if (!collectTax) {
+    quote.tax = 0;
+    quote.total = subtotal + quote.shippingRate.amount;
+    return quote;
+  }
+
   if (!hasTaxableAddress(address)) {
-    if (requireTax) throw new OrderError("please complete your shipping address");
+    if (complete) throw new OrderError("please complete your shipping address");
     return quote;
   }
 
@@ -131,7 +147,7 @@ async function buildQuote(stripe, body, requireTax) {
     // Also shows setup problems, e.g. Stripe Tax not activated yet.
     console.warn("tax calculation failed:", err.message);
     const message = "we couldn't calculate tax for this address, please check it";
-    if (requireTax) throw new OrderError(message);
+    if (complete) throw new OrderError(message);
     quote.taxError = message;
   }
 
@@ -153,14 +169,14 @@ function publicQuote(quote) {
   };
 }
 
-async function createCheckout(stripe, body) {
+async function createCheckout(stripe, body, collectTax) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const address = cleanAddress(body?.address);
   validateCheckoutDetails({ name, email, address });
 
-  const quote = await buildQuote(stripe, body, true);
+  const quote = await buildQuote(stripe, body, { complete: true, collectTax });
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: quote.total,
@@ -178,7 +194,8 @@ async function createCheckout(stripe, body) {
       shipping_rate: quote.shippingRate.id,
       shipping_amount: String(quote.shippingRate.amount),
       tax_amount: String(quote.tax),
-      tax_calculation: quote.calculation.id,
+      // Only set when Stripe Tax is on; the webhook records it as a sale.
+      ...(quote.calculation && { tax_calculation: quote.calculation.id }),
     },
   });
 

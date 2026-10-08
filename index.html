@@ -581,7 +581,8 @@
                         <dl class="checkout-totals">
                             <div class="checkout-row"><dt>subtotal</dt><dd data-total="subtotal"></dd></div>
                             <div class="checkout-row"><dt>shipping</dt><dd data-total="shipping"></dd></div>
-                            <div class="checkout-row"><dt>tax</dt><dd data-total="tax"></dd></div>
+                            <!-- data-tax-only: hidden by checkout.js while tax collection is off -->
+                            <div class="checkout-row" data-tax-only><dt>tax</dt><dd data-total="tax"></dd></div>
                             <div class="checkout-row checkout-row-total"><dt>total</dt><dd data-total="total"></dd></div>
                         </dl>
                     </section>

@@ -13,7 +13,9 @@ const env = {
   STRIPE_WEBHOOK_SECRET: "whsec_fake",
   STRIPE_PUBLISHABLE_KEY: "pk_test_fake",
   ALLOWED_ORIGINS: "https://cassetteshelf.com",
+  COLLECT_TAX: "true",
 };
+const noTaxEnv = { ...env, COLLECT_TAX: "false" };
 
 const ORIGIN = "https://cassetteshelf.com";
 const ADDRESS = {
@@ -72,14 +74,14 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-function call(path, { method = "POST", body, headers = {} } = {}) {
+function call(path, { method = "POST", body, headers = {}, workerEnv = env } = {}) {
   return worker.fetch(
     new Request("https://worker.example" + path, {
       method,
       headers: { origin: ORIGIN, "Content-Type": "application/json", ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
-    env,
+    workerEnv,
   );
 }
 
@@ -211,4 +213,50 @@ test("webhook verifies the signature and records the tax transaction", async () 
   const txn = stripeCalls.find((c) => c.path === "/v1/tax/transactions/create_from_calculation");
   assert.equal(txn.params.get("calculation"), "taxcalc_fake");
   assert.equal(txn.params.get("reference"), "pi_fake");
+});
+
+test("tax off: config says so and quotes are items + shipping, without Stripe Tax", async () => {
+  const config = await (await call("/config", { method: "GET", workerEnv: noTaxEnv })).json();
+  assert.equal(config.taxEnabled, false);
+
+  const body = await (await call("/quote", {
+    body: { items: cart, address: ADDRESS, shippingRateId: "express" },
+    workerEnv: noTaxEnv,
+  })).json();
+  assert.equal(body.tax, 0);
+  assert.equal(body.total, subtotal + 3000);
+
+  // A country alone is enough for a total when there's no tax.
+  const countryOnly = await (await call("/quote", {
+    body: { items: cart, address: { country: "US" } },
+    workerEnv: noTaxEnv,
+  })).json();
+  assert.equal(countryOnly.total, subtotal + 2500);
+  assert.equal(stripeCalls.length, 0);
+});
+
+test("tax off: checkout charges items + shipping with no tax calculation", async () => {
+  const res = await call("/checkout", {
+    body: { items: cart, address: ADDRESS, shippingRateId: "standard", name: "A", email: "t@example.com" },
+    workerEnv: noTaxEnv,
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(stripeCalls.map((c) => c.path), ["/v1/payment_intents"]);
+  const pi = stripeCalls[0].params;
+  assert.equal(Number(pi.get("amount")), subtotal + 1500);
+  assert.equal(pi.get("metadata[tax_amount]"), "0");
+  assert.equal(pi.get("metadata[tax_calculation]"), null);
+
+  // Address is still required for shipping.
+  const incomplete = await call("/checkout", {
+    body: { items: cart, address: { country: "CA" }, name: "A", email: "t@example.com" },
+    workerEnv: noTaxEnv,
+  });
+  assert.equal(incomplete.status, 400);
+});
+
+test("default (COLLECT_TAX unset) is no tax", async () => {
+  const { COLLECT_TAX, ...unset } = env;
+  const config = await (await call("/config", { method: "GET", workerEnv: unset })).json();
+  assert.equal(config.taxEnabled, false);
 });

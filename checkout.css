@@ -23,6 +23,7 @@
      .checkout-shipping-options / .checkout-shipping-option
        .checkout-shipping-label / -amount  (input[type=radio] inside)
      .checkout-totals / .checkout-row / .checkout-row-total  (dt + dd)
+       [data-tax-only]          the tax row, hidden while tax is off
      .checkout-payment-element  Stripe's fields (style via APPEARANCE in checkout.js)
      .checkout-message          error / info text
      .checkout-pay              pay button (disabled while busy)

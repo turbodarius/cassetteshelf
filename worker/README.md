@@ -1,8 +1,9 @@
 # cassetteshelf checkout worker
 
 Small Cloudflare Worker that powers the checkout window on the site. It holds
-the Stripe secret key, the official prices and shipping rates, asks Stripe Tax
-for the tax, and creates the payment. The site (GitHub Pages) never sees the
+the Stripe secret key and the official prices and shipping rates, and creates
+the payment. Sales tax (Stripe Tax) is built in but **off** by default; see
+[Turning on sales tax](#turning-on-sales-tax). The site (GitHub Pages) never sees the
 secret key and can't change what a customer is charged.
 
 | File | What it's for |
@@ -19,14 +20,10 @@ Do everything in **test mode** first (Stripe dashboard toggle, `sk_test_` / `pk_
 
 ### 1. Stripe
 
-1. **Stripe Tax:** Dashboard → Tax.
-   - Set your origin address (Montréal).
-   - Add a **registration** for every tax you're registered to collect (e.g. GST/HST, QST, any US states).
-   - Stripe Tax only charges tax where you've added a registration; with none, tax will be 0.
-2. **Receipts:** Settings → Customer emails → enable *Successful payments*.
+1. **Receipts:** Settings → Customer emails → enable *Successful payments*.
    Receipts are only emailed in live mode.
-3. **Apple Pay / Google Pay:** Settings → Payment methods → Payment method domains → add `cassetteshelf.com`.
-4. Copy your **publishable key** and **secret key** (Developers → API keys).
+2. **Apple Pay / Google Pay:** Settings → Payment methods → Payment method domains → add `cassetteshelf.com`.
+3. Copy your **publishable key** and **secret key** (Developers → API keys).
 
 ### 2. Deploy the worker
 
@@ -41,14 +38,16 @@ npm run deploy                          # prints https://cassetteshelf-checkout.
 
 Put that URL in `API_BASE` at the top of `../checkout.js`.
 
-### 3. Webhook (records each sale in Stripe Tax)
+### 3. Webhook
 
 Stripe Dashboard → Developers → Webhooks → *Add endpoint*:
 
 - URL: `https://cassetteshelf-checkout.<you>.workers.dev/webhook`
 - Event: `payment_intent.succeeded`
 
-Copy the endpoint's signing secret (`whsec_...`), then:
+Copy the endpoint's signing secret (`whsec_...`), then run the command below.
+With tax off, the webhook only logs orders (and is where you'd add an order
+notification); with tax on, it also records each sale in Stripe Tax.
 
 ```sh
 npx wrangler secret put STRIPE_WEBHOOK_SECRET
@@ -62,11 +61,23 @@ with the shipping address and the items (`metadata.items`, e.g. `cassette:2x2:1`
 
 ## Going live
 
-1. Switch the Stripe dashboard to live mode and repeat the Stripe Tax, payment method domain, and webhook steps there.
+1. Switch the Stripe dashboard to live mode and repeat the payment method domain and webhook steps (and Stripe Tax, if on) there.
 2. Put the `pk_live_...` key in `wrangler.toml`.
 3. Run `npx wrangler secret put STRIPE_SECRET_KEY` with the `sk_live_...` key.
 4. Run `npx wrangler secret put STRIPE_WEBHOOK_SECRET` with the live webhook's secret.
 5. Run `npm run deploy`.
+
+## Turning on sales tax
+
+1. In Stripe: Dashboard → Tax.
+   - Set your origin address (Montréal).
+   - Add a **registration** for every tax you're registered to collect (e.g. GST/HST, QST, any US states).
+   - Stripe Tax only charges tax where you've added a registration; with none, tax will be 0.
+2. Set `COLLECT_TAX = "true"` in `wrangler.toml` and run `npm run deploy`.
+
+The checkout then shows a tax line (anything marked `data-tax-only` in the
+markup) and adds tax to the total once the address is complete. Set it back to
+`"false"` to turn tax off again.
 
 ## Changing shipping rates or prices
 

@@ -8,6 +8,9 @@ compatibility_flags = ["nodejs_compat"]
 STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_ME"
 # Sites allowed to call this worker (comma separated, no trailing slash).
 ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http://localhost:8000"
+# "true" adds sales tax with Stripe Tax (see README). Anything else: no tax,
+# customers pay items + shipping.
+COLLECT_TAX = "false"
 
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put STRIPE_SECRET_KEY
