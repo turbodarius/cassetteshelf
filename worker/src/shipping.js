@@ -13,14 +13,14 @@ export const SHIPPING_RATES = {
   CA: {
     name: "Canada",
     options: [
-      { id: "standard", label: "standard shipping", amount: 1500 },
-      { id: "express", label: "express shipping", amount: 3000 },
+      { id: "standard", label: "standard", amount: 1500 },
+      { id: "express", label: "express", amount: 3000 },
     ],
   },
   US: {
     name: "United States",
     options: [
-      { id: "standard", label: "standard shipping", amount: 2500 },
+      { id: "standard", label: "standard", amount: 2500 },
     ],
   },
 };

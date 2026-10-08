@@ -95,10 +95,31 @@ body:has(.checkout[open]) {
     line-height: 1;
 }
 
-/* Section names and field labels start with a capital letter. */
+/* Section names, field labels, shipping choices and the total lines
+   start with a capital letter. */
 .checkout-section h3::first-letter,
-.checkout-field > span::first-letter {
+.checkout-field > span::first-letter,
+.checkout-shipping-label::first-letter,
+.checkout-totals dt::first-letter {
     text-transform: uppercase;
+}
+
+/* Shipping choices: one per line. */
+.checkout-shipping-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkout-shipping-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkout-shipping-option input {
+    margin: 0;
 }
 
 /* Cart list: no bullet dots or indent. */
