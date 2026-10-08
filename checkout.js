@@ -14,7 +14,7 @@
 
     // URL of the deployed worker (printed by `npm run deploy` in /worker).
     // While testing locally with `npm run dev`, use "http://localhost:8787".
-    const API_BASE = "https://cassetteshelf-checkout.REPLACE_ME.workers.dev";
+    const API_BASE = "https://cassetteshelf-checkout.cassetteshelf.workers.dev";
 
     // Look of Stripe's payment fields. They live in a secure iframe, so
     // checkout.css can't reach them; this is the only way to style them.
