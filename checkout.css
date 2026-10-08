@@ -56,6 +56,7 @@ body:has(.checkout[open]) {
     margin: auto;
     padding: clamp(16px, 3vw, 40px);
     overflow-y: auto;
+    border-radius: 24px;
 
     font-family: "vag", sans-serif;
 }
@@ -92,14 +93,66 @@ body:has(.checkout[open]) {
     padding: 0;
 }
 
+/* Cart row: thumbnail on the left, then three lines:
+   name / price / − qty + remove */
+.checkout-item {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+        "image name   name"
+        "image price  price"
+        "image qty    remove";
+    align-items: center;
+    column-gap: 16px;
+    row-gap: 4px;
+    margin-bottom: 12px;
+}
+
 /* Shelf thumbnail in a circle, like the configurator's preview. */
 .checkout-item-image {
+    grid-area: image;
     width: 80px;
     aspect-ratio: 1 / 1;
     object-fit: cover;
     border-radius: 50%;
     border: 1.5px solid black;
-    vertical-align: middle;
+}
+
+.checkout-item-name {
+    grid-area: name;
+}
+
+/* Line total (price x quantity). To show the unit price instead, swap
+   the display rules of these two. */
+.checkout-item-total {
+    grid-area: price;
+}
+
+.checkout-item-unit {
+    display: none;
+}
+
+.checkout-item-qty {
+    grid-area: qty;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkout-item-remove {
+    grid-area: remove;
+    justify-self: start;
+}
+
+/* Fields and shipping choices sit indented under their section heading. */
+.checkout {
+    --checkout-indent: 24px;
+}
+
+.checkout-field,
+.checkout-shipping-options,
+.checkout-hint {
+    margin-left: var(--checkout-indent);
 }
 
 /* One field per line, label above its input. */
