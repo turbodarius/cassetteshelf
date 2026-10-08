@@ -47,6 +47,7 @@ body:has(.checkout[open]) {
    font, and long carts scroll inside it instead of overflowing. */
 .checkout {
     --checkout-screen-gap: clamp(16px, 5vw, 64px);
+    --checkout-padding: clamp(16px, 3vw, 40px);
 
     box-sizing: border-box;
     width: calc(100vw - 2 * var(--checkout-screen-gap));
@@ -54,7 +55,7 @@ body:has(.checkout[open]) {
     max-width: none;
     max-height: none;
     margin: auto;
-    padding: clamp(16px, 3vw, 40px);
+    padding: var(--checkout-padding);
     overflow-y: auto;
     border-radius: 24px;
 
@@ -168,4 +169,69 @@ body:has(.checkout[open]) {
     box-sizing: border-box;
     width: 100%;
     max-width: 28rem;
+}
+
+/* Fields: small rounded corners. */
+.checkout-field input,
+.checkout-field select {
+    border-radius: 6px;
+}
+
+/* Round buttons (− + and ×), matching the configurator's .stepbtn.
+   `font: revert` gives them the same default font the configurator's
+   buttons use, instead of the window's vag. */
+.checkout-item-qty button,
+.checkout-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    /* The symbols render ~1px above center; this centers them. */
+    padding: 2px 0 0;
+
+    border-radius: 50%;
+    border: 1.5px solid black;
+    background: white;
+    color: black;
+
+    font: revert;
+    font-size: 1.5rem;
+    line-height: 0;
+    cursor: pointer;
+}
+
+.checkout-item-qty button:active,
+.checkout-close:active {
+    transform: scale(0.95);
+}
+
+
+/* "remove": same thin black frame, as a pill since it holds a word. */
+.checkout-item-remove {
+    padding: 2px 12px;
+    border-radius: 999px;
+    border: 1.5px solid black;
+    background: white;
+    color: black;
+    cursor: pointer;
+}
+
+.checkout-item-remove:active {
+    transform: scale(0.95);
+}
+
+/* The × is a + turned 45°, so it matches the + exactly. */
+.checkout-close-icon {
+    display: block;
+    transform: rotate(45deg);
+}
+
+/* × pinned to the window's top-right corner, so it stays put while the
+   window scrolls. */
+.checkout-close {
+    position: fixed;
+    top: calc(var(--checkout-screen-gap) + var(--checkout-padding));
+    right: calc(var(--checkout-screen-gap) + var(--checkout-padding));
+    z-index: 1;
 }
