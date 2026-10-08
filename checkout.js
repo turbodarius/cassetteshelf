@@ -24,8 +24,16 @@
         variables: {
             colorPrimary: "#000000",
             borderRadius: "10px",
+            fontFamily: '"vag", sans-serif',
         },
     };
+
+    // Fonts Stripe's fields may use (they can't see the site's own CSS).
+    // Stripe's secure frame only loads fonts over https, so the site font
+    // shows up there on the live site but not when testing on localhost.
+    const STRIPE_FONTS = [
+        { family: "vag", src: "url(" + new URL("fonts/vag.ttf", location.href).href + ")" },
+    ];
 
     // How money is displayed everywhere in the window (amounts are cents).
     function formatMoney(cents) {
@@ -200,6 +208,7 @@
             amount: Math.max(estimatedTotal(), 50),
             currency: config.currency,
             appearance: APPEARANCE,
+            fonts: STRIPE_FONTS,
         });
         elements.create("payment").mount("#checkoutPaymentElement");
     }
