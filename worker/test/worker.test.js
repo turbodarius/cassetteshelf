@@ -232,7 +232,8 @@ test("tax off: config says so and quotes are items + shipping, without Stripe Ta
     body: { items: cart, address: { country: "US" } },
     workerEnv: noTaxEnv,
   })).json();
-  assert.equal(countryOnly.total, subtotal + 2500);
+  // US: standard shipping + 50% tariffs on the items.
+  assert.equal(countryOnly.total, subtotal + 2500 + Math.round(subtotal * 0.5));
   assert.equal(stripeCalls.length, 0);
 });
 
@@ -283,4 +284,42 @@ test("countries without provinces/states (e.g. a newly added FR) can check out",
   } finally {
     delete SHIPPING_RATES.FR;
   }
+});
+
+const US_ADDRESS = { line1: "1 Main St", city: "Albany", state: "NY", postal_code: "12207", country: "US" };
+
+test("fees: US quote adds 50% tariffs on the items, not on shipping", async () => {
+  const body = await (await call("/quote", { body: { items: cart, address: US_ADDRESS }, workerEnv: noTaxEnv })).json();
+  const tariff = Math.round(subtotal * 0.5);
+  assert.deepEqual(body.fees, [{ id: "tariffs", label: "tariffs", percent: 50, amount: tariff }]);
+  assert.equal(body.total, subtotal + 2500 + tariff);
+});
+
+test("fees: countries without fees get none", async () => {
+  const body = await (await call("/quote", { body: { items: cart, address: ADDRESS }, workerEnv: noTaxEnv })).json();
+  assert.deepEqual(body.fees, []);
+  assert.equal(body.total, subtotal + 1500);
+});
+
+test("fees: checkout charges them and records them on the payment", async () => {
+  const res = await call("/checkout", {
+    body: { items: cart, address: US_ADDRESS, name: "A", email: "t@example.com" },
+    workerEnv: noTaxEnv,
+  });
+  assert.equal(res.status, 200);
+  const tariff = Math.round(subtotal * 0.5);
+  const pi = stripeCalls.find((c) => c.path === "/v1/payment_intents").params;
+  assert.equal(Number(pi.get("amount")), subtotal + 2500 + tariff);
+  assert.equal(pi.get("metadata[fees]"), "tariffs:" + tariff);
+});
+
+test("fees: with tax on, fees are part of the taxed amount", async () => {
+  const body = await (await call("/quote", { body: { items: cart, address: US_ADDRESS } })).json();
+  const tariff = Math.round(subtotal * 0.5);
+  const calc = stripeCalls.find((c) => c.path === "/v1/tax/calculations").params;
+  assert.equal(calc.get("line_items[2][reference]"), "fee:tariffs");
+  assert.equal(Number(calc.get("line_items[2][amount]")), tariff);
+  const tax = Math.round((subtotal + tariff + 2500) * 0.14975);
+  assert.equal(body.tax, tax);
+  assert.equal(body.total, subtotal + tariff + 2500 + tax);
 });

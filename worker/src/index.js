@@ -15,6 +15,8 @@ import {
   OrderError,
   cleanAddress,
   countryList,
+  feesFor,
+  feesMetadata,
   hasTaxableAddress,
   itemsMetadata,
   priceItems,
@@ -81,7 +83,7 @@ function stripeClient(env) {
 
 // Prices the cart from the request. With `complete`, a missing address
 // (or one Stripe Tax can't use) is an error; otherwise the quote simply
-// has no total yet. Without `collectTax`, total = items + shipping.
+// has no total yet. Without `collectTax`, total = items + shipping + fees.
 async function buildQuote(stripe, body, { complete, collectTax }) {
   const lines = priceItems(body?.items);
   const subtotal = lines.reduce((sum, l) => sum + l.amount, 0);
@@ -93,6 +95,7 @@ async function buildQuote(stripe, body, { complete, collectTax }) {
     country: address.country ?? null,
     shippingOptions: [],
     shippingRate: null,
+    fees: [],
     tax: null,
     taxError: null,
     total: null,
@@ -106,10 +109,12 @@ async function buildQuote(stripe, body, { complete, collectTax }) {
 
   quote.shippingOptions = shippingOptionsFor(address.country);
   quote.shippingRate = selectShipping(address.country, body?.shippingRateId);
+  quote.fees = feesFor(address.country, subtotal);
+  const feesTotal = quote.fees.reduce((sum, f) => sum + f.amount, 0);
 
   if (!collectTax) {
     quote.tax = 0;
-    quote.total = subtotal + quote.shippingRate.amount;
+    quote.total = subtotal + quote.shippingRate.amount + feesTotal;
     return quote;
   }
 
@@ -121,13 +126,22 @@ async function buildQuote(stripe, body, { complete, collectTax }) {
   try {
     const calculation = await stripe.tax.calculations.create({
       currency: CURRENCY,
-      line_items: lines.map((l) => ({
-        amount: l.amount,
-        quantity: l.quantity,
-        reference: l.format + ":" + l.size,
-        tax_code: TAX_CODE,
-        tax_behavior: "exclusive",
-      })),
+      line_items: [
+        ...lines.map((l) => ({
+          amount: l.amount,
+          quantity: l.quantity,
+          reference: l.format + ":" + l.size,
+          tax_code: TAX_CODE,
+          tax_behavior: "exclusive",
+        })),
+        // Fees are charged on the goods, so they're taxed like them.
+        ...quote.fees.filter((f) => f.amount > 0).map((f) => ({
+          amount: f.amount,
+          reference: "fee:" + f.id,
+          tax_code: TAX_CODE,
+          tax_behavior: "exclusive",
+        })),
+      ],
       shipping_cost: {
         amount: quote.shippingRate.amount,
         tax_behavior: "exclusive",
@@ -163,6 +177,7 @@ function publicQuote(quote) {
     shippingOptions: quote.shippingOptions,
     shippingRateId: quote.shippingRate?.id ?? null,
     shipping: quote.shippingRate?.amount ?? null,
+    fees: quote.fees,
     tax: quote.tax,
     taxError: quote.taxError,
     total: quote.total,
@@ -193,6 +208,7 @@ async function createCheckout(stripe, body, collectTax) {
       items: itemsMetadata(quote.lines),
       shipping_rate: quote.shippingRate.id,
       shipping_amount: String(quote.shippingRate.amount),
+      fees: feesMetadata(quote.fees),
       tax_amount: String(quote.tax),
       // Only set when Stripe Tax is on; the webhook records it as a sale.
       ...(quote.calculation && { tax_calculation: quote.calculation.id }),

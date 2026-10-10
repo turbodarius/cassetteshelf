@@ -6,6 +6,9 @@
 // - `id` must be unique within a country; it is what the browser sends
 //   back to say which option the customer picked.
 // - The first option of each country is selected by default.
+// - `fees` (optional): percentage fees for that country, e.g. tariffs.
+//   Each is `percent` of the items' total (shipping not included), shown
+//   to the customer as its own line, e.g. "Tariffs (50%)".
 //
 // The amounts below are PLACEHOLDERS -- set your real rates before going live.
 
@@ -19,6 +22,9 @@ export const SHIPPING_RATES = {
   },
   US: {
     name: "United States",
+    fees: [
+      { id: "tariffs", label: "tariffs", percent: 50 },
+    ],
     options: [
       { id: "standard", label: "standard", amount: 2500 },
     ],

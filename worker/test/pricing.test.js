@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { FORMATS } from "../src/catalog.js";
 import { SHIPPING_RATES } from "../src/shipping.js";
-import { OrderError, priceItems, selectShipping, cleanAddress } from "../src/pricing.js";
+import { OrderError, priceItems, selectShipping, cleanAddress, feesFor } from "../src/pricing.js";
 
 // Loads the site's display price tables (plain scripts declaring a const).
 function sitePrices(file, name) {
@@ -35,6 +35,22 @@ test("every shipping option has an id, label and integer amount", () => {
       assert.ok(Number.isInteger(o.amount) && o.amount >= 0);
     }
   }
+});
+
+test("every fee has an id, label and a positive percent", () => {
+  for (const [country, { fees = [] }] of Object.entries(SHIPPING_RATES)) {
+    assert.equal(new Set(fees.map((f) => f.id)).size, fees.length, "duplicate fee id in " + country);
+    for (const f of fees) {
+      assert.ok(f.id && f.label, "fee in " + country + " needs an id and label");
+      assert.ok(typeof f.percent === "number" && f.percent > 0, "fee percent in " + country + " must be a positive number");
+    }
+  }
+});
+
+test("feesFor rounds to the nearest cent", () => {
+  assert.deepEqual(feesFor("US", 2751), [{ id: "tariffs", label: "tariffs", percent: 50, amount: 1376 }]);
+  assert.deepEqual(feesFor("CA", 2751), []);
+  assert.deepEqual(feesFor("__proto__", 2751), []);
 });
 
 test("priceItems uses catalog prices and multiplies quantity", () => {

@@ -645,6 +645,13 @@
         </label>
     </template>
 
+    <!-- One percentage fee (e.g. "Tariffs (50%)") in the summary. Cloned by
+         checkout.js for each fee of the chosen country and placed right
+         after the shipping row. -->
+    <template id="checkoutFeeTemplate">
+        <div class="checkout-row checkout-row-fee"><dt data-field="label"></dt><dd data-field="amount"></dd></div>
+    </template>
+
     <!-- Javascript Section -->
     <script src="prices.js"></script>
     <script src="pricesCD.js"></script>

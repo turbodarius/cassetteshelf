@@ -61,6 +61,23 @@ export function selectShipping(country, rateId) {
   return options.find((o) => o.id === rateId) ?? options[0];
 }
 
+// Percentage fees (e.g. tariffs) for a country, as amounts in cents.
+// Each fee is a percentage of the items' total, shipping not included.
+export function feesFor(country, itemsTotal) {
+  const fees = ownValue(SHIPPING_RATES, country)?.fees ?? [];
+  return fees.map((fee) => ({
+    id: fee.id,
+    label: fee.label,
+    percent: fee.percent,
+    amount: Math.round((itemsTotal * fee.percent) / 100),
+  }));
+}
+
+// Compact "id:amount" summary for PaymentIntent metadata.
+export function feesMetadata(fees) {
+  return fees.map((f) => f.id + ":" + f.amount).join(",");
+}
+
 export function countryList() {
   return Object.entries(SHIPPING_RATES).map(([code, c]) => ({ code, name: c.name }));
 }

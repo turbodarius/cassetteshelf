@@ -8,7 +8,7 @@ secret key and can't change what a customer is charged.
 
 | File | What it's for |
 |---|---|
-| `src/shipping.js` | **Flat shipping rates per country.** Edit, then redeploy. |
+| `src/shipping.js` | **Flat shipping rates and percentage fees (e.g. tariffs) per country.** Edit, then redeploy. |
 | `src/catalog.js` | **Official prices** (cents). Must match `prices.js` / `pricesCD.js`. |
 | `src/pricing.js` | Cart validation and price math (no Stripe calls). |
 | `src/index.js` | The routes: `/config`, `/quote`, `/checkout`, `/webhook`. |
@@ -85,6 +85,18 @@ markup) and adds tax to the total once the address is complete. Set it back to
   their two-letter ISO code (`FR`, `GB`, `DE`, ...). New countries just work: the
   province/state field only appears for countries listed in `REGIONS` in
   `../checkout.js` (Canada and the US).
+- **Percentage fees (e.g. tariffs):** add a `fees` list to a country in
+  `src/shipping.js`:
+  ```js
+  US: {
+    name: "United States",
+    fees: [{ id: "tariffs", label: "tariffs", percent: 50 }],
+    options: [ ... ],
+  },
+  ```
+  Each fee is `percent` of the items' total (shipping not included), rounded to
+  the cent, and appears as its own line in the summary ("Tariffs (50%)"). A
+  country can have several fees; remove the `fees` line for none.
 - **Prices:** edit `prices.js` / `pricesCD.js` on the site **and** `src/catalog.js`.
 
 Then:

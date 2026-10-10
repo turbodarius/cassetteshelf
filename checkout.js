@@ -477,6 +477,7 @@
 
     function renderQuote() {
         renderShippingOptions();
+        renderFees();
 
         setTotal("subtotal", formatMoney(quote ? quote.subtotal : localSubtotal()));
         setTotal("shipping", quote && quote.shipping !== null ? formatMoney(quote.shipping) : "—");
@@ -492,9 +493,26 @@
         }
     }
 
+    // One summary row per percentage fee (e.g. tariffs), after "shipping".
+    function renderFees() {
+        form.querySelectorAll(".checkout-row-fee").forEach((row) => row.remove());
+        const fees = quote ? quote.fees || [] : [];
+        const shippingRow = form.querySelector('[data-total="shipping"]').parentElement;
+        const rows = fees.map((fee) => {
+            const row = els.feeTemplate.content.firstElementChild.cloneNode(true);
+            setField(row, "label", fee.label + " (" + fee.percent + "%)");
+            setField(row, "amount", formatMoney(fee.amount));
+            return row;
+        });
+        shippingRow.after(...rows);
+    }
+
     // While a new quote is on its way, don't show totals that may be stale.
     function renderPendingTotals() {
         setTotal("subtotal", formatMoney(localSubtotal()));
+        form.querySelectorAll('.checkout-row-fee [data-field="amount"]').forEach((el) => {
+            el.textContent = "…";
+        });
         setTotal("tax", "…");
         setTotal("total", "…");
         els.payTotal.textContent = "";
@@ -581,6 +599,7 @@
             postalLabel: document.querySelector("[data-postal-label]"),
             itemTemplate: document.getElementById("checkoutItemTemplate"),
             shippingTemplate: document.getElementById("checkoutShippingTemplate"),
+            feeTemplate: document.getElementById("checkoutFeeTemplate"),
         };
 
         els.cartButton.addEventListener("click", open);
