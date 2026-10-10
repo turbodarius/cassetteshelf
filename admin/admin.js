@@ -513,7 +513,10 @@
     async function orderRequest(button, method, body, path) {
         button.disabled = true;
         try {
-            const { order: updated, email } = await api(method, body, path);
+            const data = await api(method, body, path);
+            // A worker deployed before shipping emails returns the order itself.
+            const updated = data.order || data;
+            const email = data.order ? data.email : null;
             orders = orders.map((o) => (o.id === updated.id ? updated : o));
             renderOrders();
             if (!email) hideMessage();
