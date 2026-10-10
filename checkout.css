@@ -1,0 +1,391 @@
+/* =====================================================================
+   CHECKOUT WINDOW
+   Markup: index.html (search "CHECKOUT WINDOW"). Behaviour: checkout.js.
+
+   Only the rules the window needs to WORK are below. All visual design
+   is yours. Hooks available:
+
+   .cart-button                 floating "cart (n)" button (hidden when empty)
+   .checkout                    the <dialog>; ::backdrop is the dimmed page
+     .is-loading                  ...while prices/tax are being fetched
+     .is-busy                     ...while a payment is processing
+   .checkout-panel              everything inside the window
+   .checkout-header / -title / -close
+   .checkout-form               view 1: cart, details, payment
+     .checkout-section          each block (+ .checkout-cart, -contact,
+                                -address, -shipping, -summary, -payment)
+     .checkout-items            <ul> of .checkout-item rows:
+       .checkout-item-image / -name / -unit / -qty / -total / -remove
+     .checkout-empty            "your cart is empty"
+     .checkout-details          everything below the item list
+     .checkout-field            a <label> wrapping a <span> + input (email, phone)
+     .checkout-address-element  Stripe's address form (style via APPEARANCE in checkout.js)
+     .checkout-hint             "choose a country..." text
+     .checkout-shipping-options / .checkout-shipping-option
+       .checkout-shipping-label / -amount  (input[type=radio] inside)
+     .checkout-totals / .checkout-row / .checkout-row-total  (dt + dd)
+       .checkout-row-fee          a percentage fee row, e.g. "Tariffs (50%)"
+       [data-tax-only]          the tax row, hidden while tax is off
+     .checkout-payment-element  Stripe's fields (style via APPEARANCE in checkout.js)
+     .checkout-message          error / info text
+     .checkout-pay              pay button (disabled while busy)
+   .checkout-success            view 2: thank-you message
+     .checkout-done             "back to the site" button
+   ===================================================================== */
+
+/* `hidden` must win over any display rule you add. */
+.checkout [hidden],
+.cart-button[hidden] {
+    display: none !important;
+}
+
+/* Keeps the page behind from scrolling while the window is open. */
+body:has(.checkout[open]) {
+    overflow: hidden;
+}
+
+/* The window: the same gap on all four sides of the screen, the site's
+   font, and long carts scroll inside it instead of overflowing. */
+.checkout {
+    --checkout-screen-gap: clamp(16px, 5vw, 64px);
+    --checkout-padding: clamp(16px, 3vw, 40px);
+    --checkout-border: 3px;
+
+    box-sizing: border-box;
+    width: calc(100vw - 2 * var(--checkout-screen-gap));
+    height: calc(100dvh - 2 * var(--checkout-screen-gap));
+    max-width: none;
+    max-height: none;
+    margin: auto;
+    padding: var(--checkout-padding);
+    overflow-y: auto;
+    border: var(--checkout-border) solid black;
+    border-radius: 24px;
+
+    font-family: "vag", sans-serif;
+}
+
+/* Form controls don't inherit the page font by default. */
+.checkout input,
+.checkout select,
+.checkout button {
+    font: inherit;
+}
+
+/* Above the site's sticky headers. */
+.cart-button {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 100000;
+}
+
+.checkout.is-busy .checkout-pay {
+    pointer-events: none;
+}
+
+/* ---- Design ----------------------------------------------------------- */
+
+.checkout-title {
+    font-size: clamp(2rem, 1.2rem + 3vw, 3.5rem);
+    text-transform: capitalize;   /* "Your Cart" */
+    /* With line-height 1 and this small pull-up (the space vag leaves
+       above its capitals), the top of the letters lines up with the top
+       of the × button. */
+    margin-top: -0.03em;
+    line-height: 1;
+}
+
+/* Section names, field labels, shipping choices and the total lines
+   start with a capital letter. */
+.checkout-section h3::first-letter,
+.checkout-field > span::first-letter,
+.checkout-shipping-label::first-letter,
+.checkout-totals dt::first-letter {
+    text-transform: uppercase;
+}
+
+/* Shipping choices and totals: one shared grid,
+   columns = indent | radio | name | price | rest.
+   Each level below passes the same columns down (subgrid), so the
+   names / labels and the prices form two straight columns. */
+.checkout-pricing {
+    display: grid;
+    grid-template-columns: var(--checkout-indent) auto auto auto 1fr;
+    /* Inside a grid, the heading's top margin no longer overlaps the last
+       field's 12px bottom margin; this keeps the usual gap above "Shipping". */
+    margin-top: -12px;
+}
+
+.checkout-pricing > section,
+.checkout-shipping-options,
+.checkout-totals {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+}
+
+.checkout-pricing h3 {
+    grid-column: 1 / -1;
+}
+
+.checkout-pricing .checkout-hint {
+    grid-column: 2 / -1;
+    margin-left: 0;
+}
+
+/* One shipping choice per line: radio | name | price. */
+.checkout-shipping-options {
+    row-gap: 8px;
+}
+
+.checkout-shipping-option {
+    display: grid;
+    grid-column: 2 / span 3;
+    grid-template-columns: subgrid;
+    align-items: center;
+    cursor: pointer;
+}
+
+.checkout-shipping-option input {
+    margin: 0 8px 0 0;
+}
+
+/* Space between the longest name and the prices. */
+.checkout-shipping-label,
+.checkout-totals dt {
+    padding-right: 24px;
+}
+
+/* Subtotal / Shipping / Total: label under the shipping names, amount
+   under the shipping prices. */
+.checkout-totals {
+    margin: 0;
+    row-gap: 4px;
+}
+
+.checkout-row {
+    display: grid;
+    grid-column: 3 / span 2;
+    grid-template-columns: subgrid;
+}
+
+.checkout-totals dd {
+    margin: 0;
+}
+
+/* A blank line before Total. */
+.checkout-row-total {
+    margin-top: 1em;
+}
+
+.checkout-row-total dd {
+    font-weight: bold;
+}
+
+
+
+/* Cart list: no bullet dots or indent. */
+.checkout-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Cart row: thumbnail on the left, then three lines:
+   name / price / − qty + remove */
+.checkout-item {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+        "image name   name"
+        "image price  price"
+        "image qty    remove";
+    align-items: center;
+    column-gap: 16px;
+    row-gap: 4px;
+    margin-bottom: 12px;
+}
+
+/* Shelf thumbnail in a circle, like the configurator's preview. */
+.checkout-item-image {
+    grid-area: image;
+    width: 80px;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1.5px solid black;
+}
+
+.checkout-item-name {
+    grid-area: name;
+}
+
+/* Line total (price x quantity). To show the unit price instead, swap
+   the display rules of these two. */
+.checkout-item-total {
+    grid-area: price;
+}
+
+.checkout-item-unit {
+    display: none;
+}
+
+.checkout-item-qty {
+    grid-area: qty;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkout-item-remove {
+    grid-area: remove;
+    justify-self: start;
+}
+
+/* Fields and shipping choices sit indented under their section heading. */
+.checkout {
+    --checkout-indent: 24px;
+}
+
+.checkout-field,
+.checkout-hint,
+.checkout-address-element {
+    margin-left: var(--checkout-indent);
+}
+
+/* Stripe's address form: same width and bottom spacing as the fields. */
+.checkout-address-element {
+    max-width: 28rem;
+    margin-bottom: 12px;
+}
+
+/* One field per line, label above its input. */
+.checkout-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.checkout-field input,
+.checkout-field select {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 28rem;
+}
+
+/* Fields: small rounded corners, thin pale border. */
+.checkout-field input,
+.checkout-field select {
+    border-radius: 6px;
+    border: 1px solid #b3b3b3;
+    height: 34px;
+    padding: 0 8px;
+}
+
+/* Round buttons (− + and ×), matching the configurator's .stepbtn.
+   `font: revert` gives them the same default font the configurator's
+   buttons use, instead of the window's vag. */
+.checkout-item-qty button,
+.checkout-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    /* The symbols render ~1px above center; this centers them. */
+    padding: 2px 0 0;
+
+    border-radius: 50%;
+    border: 1.5px solid black;
+    background: white;
+    color: black;
+
+    font: revert;
+    font-size: 1.5rem;
+    line-height: 0;
+    cursor: pointer;
+}
+
+.checkout-item-qty button:active,
+.checkout-close:active {
+    transform: scale(0.95);
+}
+
+
+/* "remove": same thin black frame, as a pill since it holds a word. */
+.checkout-item-remove {
+    padding: 2px 12px;
+    border-radius: 999px;
+    border: 1.5px solid black;
+    background: white;
+    color: black;
+    cursor: pointer;
+}
+
+.checkout-item-remove:active {
+    transform: scale(0.95);
+}
+
+/* Close button: 20% bigger than the − / + buttons. */
+.checkout-close {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+}
+
+/* The × is drawn as two crossed lines so it's exactly centered
+   (a text character sits wherever the font puts it). */
+.checkout-close-icon {
+    position: relative;
+    width: 18px;
+    height: 18px;
+}
+
+.checkout-close-icon::before,
+.checkout-close-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background: black;
+    transform: rotate(45deg);
+}
+
+.checkout-close-icon::after {
+    transform: rotate(-45deg);
+}
+
+/* Purchase button: the same pill as "remove", a bit larger, inverted. */
+.checkout-pay {
+    margin-top: 12px;
+    padding: 8px 28px;
+    border-radius: 999px;
+    border: 1.5px solid black;
+    background: black;
+    color: white;
+    cursor: pointer;
+}
+
+.checkout-pay:active {
+    transform: scale(0.97);
+}
+
+.checkout-pay:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* × pinned to the window's top-right corner, so it stays put while the
+   window scrolls. */
+.checkout-close {
+    position: fixed;
+    top: calc(var(--checkout-screen-gap) + var(--checkout-border) + var(--checkout-padding));
+    right: calc(var(--checkout-screen-gap) + var(--checkout-border) + var(--checkout-padding));
+    z-index: 1;
+}

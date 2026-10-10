@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>cassetteshelf admin</title>
+    <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+    <header class="admin-header">
+        <h1>cassetteshelf admin</h1>
+        <nav id="tabs" class="tabs" hidden>
+            <button type="button" class="tab is-active" data-tab="settings">Settings</button>
+            <button type="button" class="tab" data-tab="orders">Orders</button>
+            <button type="button" class="tab" data-tab="analytics">Analytics</button>
+        </nav>
+        <div id="actions" class="admin-actions" hidden>
+            <span id="status" class="status" data-settings-only></span>
+            <button type="button" id="saveButton" class="pill pill-black" data-settings-only>Save</button>
+            <button type="button" id="logoutButton" class="pill">Log out</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Log in -->
+        <form id="loginView" class="card login">
+            <h2>Log in</h2>
+            <label class="field">
+                <span>Admin password</span>
+                <input type="password" id="password" autocomplete="current-password" required>
+            </label>
+            <p id="loginError" class="error" role="alert" hidden></p>
+            <button type="submit" class="pill pill-black">Log in</button>
+        </form>
+
+        <!-- Editor -->
+        <div id="editorView" hidden>
+            <div id="message" class="message" role="alert" hidden></div>
+
+            <div id="settingsTab">
+            <section class="card">
+                <h2>Prices</h2>
+                <p class="hint">In CAD. Each box is a size, columns × rows, like the configurator.
+                    Leave a box empty to make that size unavailable (the site shows "contact us").</p>
+                <div id="prices"></div>
+            </section>
+
+            <section class="card">
+                <h2>Countries &amp; shipping</h2>
+                <p class="hint">Customers can only pick the countries listed here. Each country needs at
+                    least one shipping option (a flat price per order). Fees, like tariffs, are a
+                    percentage of the shelves' total, shipping not included.</p>
+                <div id="countries"></div>
+                <div class="add-country">
+                    <label class="field">
+                        <span>Add a country (two-letter code, e.g. FR, GB, DE)</span>
+                        <input id="newCountryCode" maxlength="2" autocomplete="off" spellcheck="false">
+                    </label>
+                    <button type="button" id="addCountryButton" class="pill">Add country</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Order emails</h2>
+                <p id="orderEmailStatus" class="hint"></p>
+                <button type="button" id="testEmailButton" class="pill">Send a test email</button>
+            </section>
+
+            <section class="card">
+                <h2>Sales tax</h2>
+                <label class="checkbox">
+                    <input type="checkbox" id="collectTax">
+                    <span>Collect sales tax with Stripe Tax</span>
+                </label>
+                <p class="hint">Only turn this on after adding your tax registrations in Stripe
+                    (Dashboard → Tax); Stripe only charges tax where you're registered.</p>
+            </section>
+            </div>
+
+            <!-- Analytics: visits and checkout steps (worker D1) + sales and
+                 abandoned purchases (Stripe). Built by admin.js. -->
+            <div id="analyticsTab" hidden>
+                <div class="analytics-bar">
+                    <div class="periods" role="group" aria-label="period">
+                        <button type="button" class="tab" data-days="7">7 days</button>
+                        <button type="button" class="tab is-active" data-days="30">30 days</button>
+                        <button type="button" class="tab" data-days="90">90 days</button>
+                        <button type="button" class="tab" data-days="365">12 months</button>
+                    </div>
+                    <button type="button" id="refreshAnalytics" class="pill">Refresh</button>
+                </div>
+                <div id="analytics"></div>
+            </div>
+
+            <!-- Orders: every paid order, read from Stripe (newest first). -->
+            <div id="ordersTab" hidden>
+                <section class="card">
+                    <div class="orders-head">
+                        <h2>Orders</h2>
+                        <div class="orders-actions">
+                            <button type="button" id="refreshOrders" class="pill">Refresh</button>
+                            <button type="button" id="downloadCsv" class="pill">Download CSV</button>
+                        </div>
+                    </div>
+                    <p id="ordersSummary" class="hint"></p>
+                    <label class="checkbox">
+                        <input type="checkbox" id="onlyToShip">
+                        <span>Only show orders to ship</span>
+                    </label>
+                    <div id="ordersList" class="orders"></div>
+                    <button type="button" id="loadMoreOrders" class="pill" hidden>Load more</button>
+                </section>
+
+                <!-- Orders from before Stripe, imported from a Shopify CSV export.
+                     Stored in Cloudflare (never in the repository). -->
+                <section class="card">
+                    <div class="orders-head">
+                        <h2>Earlier orders (Shopify)</h2>
+                        <div class="orders-actions">
+                            <label class="pill" for="shopifyCsv">Import Shopify CSV</label>
+                            <input type="file" id="shopifyCsv" accept=".csv,text/csv" hidden>
+                            <button type="button" id="removeLegacy" class="pill" hidden>Remove imported orders</button>
+                        </div>
+                    </div>
+                    <p id="legacySummary" class="hint"></p>
+                    <div id="legacyList" class="orders"></div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- One shipping option / fee row inside a country. Cloned by admin.js. -->
+    <template id="optionRowTemplate">
+        <div class="row">
+            <label class="field"><span data-name-label>Name</span><input data-field="label" autocomplete="off"></label>
+            <label class="field field-small"><span data-amount-label>Price ($)</span><input data-field="amount" inputmode="decimal" autocomplete="off"></label>
+            <button type="button" class="round" data-action="remove" aria-label="remove"><span aria-hidden="true"></span></button>
+        </div>
+    </template>
+
+    <script src="admin.js"></script>
+</body>
+</html>
