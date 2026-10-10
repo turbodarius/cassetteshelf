@@ -461,6 +461,7 @@
         const count = cart.reduce((sum, item) => sum + item.quantity, 0);
         els.cartButton.hidden = count === 0;
         els.cartCount.textContent = count;
+        els.cartButton.setAttribute("aria-label", "cart, " + count + " item" + (count === 1 ? "" : "s"));
     }
 
     function renderItems() {
