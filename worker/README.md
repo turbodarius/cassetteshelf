@@ -104,6 +104,13 @@ fees, tax, payment method and a link to the payment in Stripe. **Download CSV**
 exports the loaded orders for a spreadsheet. New orders can take about a minute
 to appear (Stripe's search is updated with a short delay).
 
+**Mark as shipped** (on each order) records the date, carrier and an optional
+tracking number on the payment in Stripe (metadata `shipped_at`, `carrier`,
+`tracking_number`), so it also shows in Stripe's dashboard. Orders still to
+ship are labelled and counted, and **Only show orders to ship** filters the
+list. **Undo** clears it. Carriers and their tracking pages are listed in
+`CARRIERS` in `src/orders.js`.
+
 ### One-time setup
 
 1. Pick a long password and keep it in your password manager. On a Mac,

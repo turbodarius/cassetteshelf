@@ -475,3 +475,51 @@ input.is-invalid {
 .order-foot a {
     color: inherit;
 }
+
+/* ---- Shipping status ---- */
+
+.badge-to-ship {
+    background: black;
+    color: white;
+}
+
+.badge-shipped {
+    border-color: var(--pale);
+    color: #555;
+}
+
+.order-shipping {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e6e6e6;
+}
+
+.order-shipping a {
+    color: inherit;
+}
+
+.ship-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.ship-form select,
+.ship-form input {
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--pale);
+    border-radius: 6px;
+    background: white;
+    font: inherit;
+}
+
+.ship-form input {
+    width: 16rem;
+    max-width: 100%;
+}

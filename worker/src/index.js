@@ -8,6 +8,8 @@
 //   GET  /admin/settings  (admin password) current store settings
 //   PUT  /admin/settings  (admin password) saves store settings
 //   GET  /admin/orders    (admin password) paid orders from Stripe, newest first
+//   PUT  /admin/orders/<id>/shipment     (admin password) mark shipped
+//   DELETE /admin/orders/<id>/shipment   (admin password) undo "shipped"
 //
 // Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY,
 //   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password)
@@ -17,7 +19,7 @@
 import Stripe from "stripe";
 import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
 import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
-import { listOrders } from "./orders.js";
+import { CARRIERS, listOrders, setShipment } from "./orders.js";
 import {
   OrderError,
   cleanAddress,
@@ -48,7 +50,7 @@ export default {
     }
 
     try {
-      if (url.pathname === "/admin/settings" || url.pathname === "/admin/orders") {
+      if (url.pathname.startsWith("/admin/")) {
         return await handleAdmin(request, env, cors, url);
       }
 
@@ -98,8 +100,25 @@ async function handleAdmin(request, env, cors, url) {
 
   if (url.pathname === "/admin/orders") {
     if (request.method !== "GET") return json({ error: "not found" }, 404, cors);
-    return json(await listOrders(stripeClient(env), url.searchParams.get("page")), 200, cors);
+    const result = await listOrders(stripeClient(env), url.searchParams.get("page"));
+    const carriers = Object.fromEntries(Object.entries(CARRIERS).map(([id, c]) => [id, c.name]));
+    return json({ ...result, carriers }, 200, cors);
   }
+
+  const shipment = url.pathname.match(/^\/admin\/orders\/([^/]+)\/shipment$/);
+  if (shipment) {
+    const id = shipment[1];
+    if (request.method === "PUT") {
+      const body = await request.json().catch(() => ({}));
+      return json(await setShipment(stripeClient(env), id, body ?? {}), 200, cors);
+    }
+    if (request.method === "DELETE") {
+      return json(await setShipment(stripeClient(env), id, null), 200, cors);
+    }
+    return json({ error: "not found" }, 404, cors);
+  }
+
+  if (url.pathname !== "/admin/settings") return json({ error: "not found" }, 404, cors);
 
   if (request.method === "GET") {
     const { settings, updatedAt } = await loadSettings(env);
@@ -320,7 +339,7 @@ function corsHeaders(request, env) {
   const allowed = (env.ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim());
   const origin = request.headers.get("origin");
   const headers = {
-    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Vary": "Origin",
   };

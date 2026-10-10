@@ -61,6 +61,19 @@ beforeEach(() => {
         amount_total: lines + shipping + tax,
       });
     }
+    const piPath = path.match(/^\/v1\/payment_intents\/(pi_[A-Za-z0-9_]+)$/);
+    if (piPath) {
+      const pi = structuredClone(SEARCH_PAGE_1.data.find((p) => p.id === piPath[1]) ?? null);
+      if (!pi) return respond({ error: { type: "invalid_request_error", message: "No such payment_intent" } }, 404);
+      pi.status = piPath[1] === "pi_live2" ? "requires_payment_method" : "succeeded";
+      if (init.method === "POST") {
+        for (const [key, value] of params) {
+          const m = key.match(/^metadata\[(.+)\]$/);
+          if (m) value === "" ? delete pi.metadata[m[1]] : (pi.metadata[m[1]] = value);
+        }
+      }
+      return respond(pi);
+    }
     if (path === "/v1/payment_intents/search") {
       const query = new URL(url).searchParams;
       stripeCalls[stripeCalls.length - 1].params = query;
@@ -505,6 +518,7 @@ test("orders: paid payments from Stripe, newest first, with everything needed to
     fees: [{ id: "tariffs", amount: 1376 }],
     tax: 0,
     paymentMethod: "Visa •••• 4242",
+    shipment: null,
     stripeUrl: "https://dashboard.stripe.com/payments/pi_live1",
   });
 
@@ -520,5 +534,65 @@ test("orders: next page is passed through to Stripe", async () => {
   const res = await call("/admin/orders?page=page_token_2", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } });
   const body = await res.json();
   assert.equal(stripeCalls.find((c) => c.path === "/v1/payment_intents/search").params.get("page"), "page_token_2");
-  assert.deepEqual(body, { orders: [], nextPage: null });
+  assert.deepEqual(body.orders, []);
+  assert.equal(body.nextPage, null);
+});
+
+// ---- Mark as shipped ----
+
+const ship = (id, method, body, password = PASSWORD) =>
+  call("/admin/orders/" + id + "/shipment", { method, body, workerEnv: adminEnv(), headers: { authorization: "Bearer " + password } });
+
+test("shipping: marking an order shipped stores carrier + tracking on the payment", async () => {
+  const res = await ship("pi_live1", "PUT", { carrier: "canada-post", tracking: " 1234 5678\u0007 " });
+  assert.equal(res.status, 200);
+  const order = await res.json();
+  const update = stripeCalls.find((c) => c.path === "/v1/payment_intents/pi_live1" && c.params.get("metadata[carrier]"));
+  assert.equal(update.params.get("metadata[carrier]"), "canada-post");
+  assert.equal(update.params.get("metadata[tracking_number]"), "1234 5678");
+  assert.match(update.params.get("metadata[shipped_at]"), /^\d{4}-\d\d-\d\dT/);
+  assert.equal(update.params.get("expand[0]"), "latest_charge");
+  assert.equal(order.shipment.carrierName, "Canada Post");
+  assert.equal(order.shipment.tracking, "1234 5678");
+  assert.equal(order.shipment.trackingUrl, "https://www.canadapost-postescanada.ca/track-reperage/en#/search?searchFor=1234%205678");
+  assert.equal(order.items[0].label, "1x1 cassette shelf");
+});
+
+test("shipping: no tracking number, or 'other' carrier, means no tracking link", async () => {
+  const a = await (await ship("pi_live1", "PUT", { carrier: "ups" })).json();
+  assert.equal(a.shipment.trackingUrl, null);
+  const b = await (await ship("pi_live1", "PUT", { carrier: "other", tracking: "ABC" })).json();
+  assert.equal(b.shipment.carrierName, "Other");
+  assert.equal(b.shipment.trackingUrl, null);
+});
+
+test("shipping: undo clears it", async () => {
+  const res = await ship("pi_live1", "DELETE");
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).shipment, null);
+  const update = stripeCalls.find((c) => c.path === "/v1/payment_intents/pi_live1" && c.params.has("metadata[shipped_at]"));
+  assert.equal(update.params.get("metadata[shipped_at]"), "");
+});
+
+test("shipping: refuses bad requests", async () => {
+  assert.equal((await ship("pi_live1", "PUT", { carrier: "pigeon" })).status, 400);
+  assert.equal((await ship("not-an-id", "PUT", { carrier: "ups" })).status, 400);
+  assert.equal((await ship("pi_live2", "PUT", { carrier: "ups" })).status, 400, "unpaid payment");
+  assert.equal((await ship("pi_live1", "PUT", { carrier: "ups" }, "wrong")).status, 401);
+  assert.ok(!stripeCalls.some((c) => c.path === "/v1/payment_intents/pi_live1" && c.params.get("metadata[carrier]") === "pigeon"));
+});
+
+test("orders: shipped orders say so; the list includes the carrier choices", async () => {
+  SEARCH_PAGE_1.data[0].metadata = { ...SEARCH_PAGE_1.data[0].metadata, shipped_at: "2026-10-10T12:00:00.000Z", carrier: "usps", tracking_number: "9400" };
+  try {
+    const body = await (await call("/admin/orders", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } })).json();
+    assert.deepEqual(body.orders[0].shipment, {
+      at: "2026-10-10T12:00:00.000Z", carrier: "usps", carrierName: "USPS", tracking: "9400",
+      trackingUrl: "https://tools.usps.com/go/TrackConfirmAction?tLabels=9400",
+    });
+    assert.equal(body.orders[1].shipment, null);
+    assert.equal(body.carriers["canada-post"], "Canada Post");
+  } finally {
+    for (const k of ["shipped_at", "carrier", "tracking_number"]) delete SEARCH_PAGE_1.data[0].metadata[k];
+  }
 });

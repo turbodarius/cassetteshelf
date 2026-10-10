@@ -406,6 +406,7 @@
     let orders = [];
     let nextOrdersPage = null;
     let ordersLoaded = false;
+    let carriers = {};       // { "canada-post": "Canada Post", ... } from the worker
 
     // more = false starts over from the newest; true appends the next page.
     async function loadOrders(more) {
@@ -417,6 +418,7 @@
             const data = await api("GET", null, "/admin/orders" + page);
             orders = more ? orders.concat(data.orders) : data.orders;
             nextOrdersPage = data.nextPage;
+            carriers = data.carriers || carriers;
             ordersLoaded = true;
             hideMessage();
             renderOrders();
@@ -429,17 +431,78 @@
         }
     }
 
+    // Fully refunded orders don't need shipping.
+    function toShip(order) {
+        return !order.shipment && order.status !== "refunded";
+    }
+
     function renderOrders() {
         const list = $("ordersList");
-        list.replaceChildren(...orders.map(orderCard));
+        const shown = $("onlyToShip").checked ? orders.filter(toShip) : orders;
+        list.replaceChildren(...shown.map(orderCard));
         $("loadMoreOrders").hidden = !nextOrdersPage;
         $("downloadCsv").disabled = orders.length === 0;
 
         const kept = orders.reduce((sum, o) => sum + o.total - o.refunded, 0);
+        const waiting = orders.filter(toShip).length;
         $("ordersSummary").textContent = orders.length === 0
             ? "No orders yet. New orders can take about a minute to appear."
             : orders.length + (nextOrdersPage ? " most recent" : "") + " order" + (orders.length === 1 ? "" : "s") +
-              " · " + cad(kept) + " after refunds. New orders can take about a minute to appear.";
+              " · " + waiting + " to ship · " + cad(kept) + " after refunds. New orders can take about a minute to appear.";
+    }
+
+    // Marks an order shipped (shipment = { carrier, tracking }) or not (null).
+    async function updateShipment(order, shipment, button) {
+        button.disabled = true;
+        try {
+            const path = "/admin/orders/" + encodeURIComponent(order.id) + "/shipment";
+            const updated = await api(shipment ? "PUT" : "DELETE", shipment, path);
+            orders = orders.map((o) => (o.id === updated.id ? updated : o));
+            hideMessage();
+            renderOrders();
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            button.disabled = false;
+            showMessage("Couldn't update the order: " + err.message, true);
+        }
+    }
+
+    function shippingLine(order) {
+        const line = el("div", { className: "order-shipping" });
+        if (order.shipment) {
+            const s = order.shipment;
+            const info = el("span", {}, document.createTextNode(
+                "Shipped " + new Date(s.at).toLocaleDateString() + (s.carrierName ? " with " + s.carrierName : "")));
+            if (s.tracking) {
+                info.append(document.createTextNode(" · tracking "));
+                info.append(s.trackingUrl
+                    ? el("a", { href: s.trackingUrl, target: "_blank", rel: "noopener", textContent: s.tracking + " ↗" })
+                    : el("span", { textContent: s.tracking }));
+            }
+            line.append(info);
+            const undo = el("button", { type: "button", className: "pill pill-small", textContent: "Undo" });
+            undo.addEventListener("click", () => {
+                if (confirm("Mark this order as not shipped?")) updateShipment(order, null, undo);
+            });
+            line.append(undo);
+            return line;
+        }
+
+        const start = el("button", { type: "button", className: "pill pill-black pill-small", textContent: "Mark as shipped" });
+        start.addEventListener("click", () => {
+            const carrier = el("select", { ariaLabel: "carrier" },
+                ...Object.entries(carriers).map(([id, name]) => el("option", { value: id, textContent: name })));
+            const tracking = el("input", { placeholder: "Tracking number (optional)", autocomplete: "off", ariaLabel: "tracking number" });
+            const confirmButton = el("button", { type: "button", className: "pill pill-black pill-small", textContent: "Confirm shipped" });
+            const cancel = el("button", { type: "button", className: "pill pill-small", textContent: "Cancel" });
+            confirmButton.addEventListener("click", () =>
+                updateShipment(order, { carrier: carrier.value, tracking: tracking.value }, confirmButton));
+            cancel.addEventListener("click", () => line.replaceWith(shippingLine(order)));
+            line.replaceChildren(el("div", { className: "ship-form" }, carrier, tracking, confirmButton, cancel));
+            tracking.focus();
+        });
+        line.append(start);
+        return line;
     }
 
     function orderCard(order) {
@@ -450,6 +513,9 @@
             el("strong", { className: "order-total", textContent: cad(order.total) }),
             el("span", { className: "badge badge-" + order.status.replace(" ", "-"), textContent:
                 order.status === "partially refunded" ? "partially refunded (" + cad(order.refunded) + ")" : order.status }),
+            order.shipment
+                ? el("span", { className: "badge badge-shipped", textContent: "shipped" })
+                : toShip(order) ? el("span", { className: "badge badge-to-ship", textContent: "to ship" }) : "",
         ));
 
         const customer = el("div", { className: "order-block" }, el("h4", { textContent: "Customer" }));
@@ -489,6 +555,7 @@
         const bought = el("div", { className: "order-block" }, el("h4", { textContent: "Items" }), items, charges);
 
         card.append(el("div", { className: "order-body" }, customer, shipTo, bought));
+        card.append(shippingLine(order));
         card.append(el("p", { className: "order-foot" },
             document.createTextNode((order.paymentMethod || "Paid") + " · "),
             el("a", { href: order.stripeUrl, target: "_blank", rel: "noopener", textContent: "View in Stripe ↗" }),
@@ -514,11 +581,12 @@
 
     // Spreadsheet of the loaded orders (Excel, Numbers, Google Sheets...).
     function downloadCsv() {
-        const header = ["date", "order", "status", "total", "refunded", "name", "email", "phone",
+        const header = ["date", "order", "status", "shipped", "carrier", "tracking", "total", "refunded", "name", "email", "phone",
             "address line 1", "address line 2", "city", "province/state", "postal code", "country",
             "items", "shipping option", "shipping", "fees", "tax"];
         const rows = orders.map((o) => [
-            o.created, o.id, o.status, dollars(o.total), dollars(o.refunded),
+            o.created, o.id, o.status, o.shipment ? o.shipment.at : "", o.shipment ? o.shipment.carrierName : "",
+            o.shipment ? o.shipment.tracking : "", dollars(o.total), dollars(o.refunded),
             o.customer.name, o.customer.email, o.customer.phone,
             o.address.line1, o.address.line2, o.address.city, o.address.state, o.address.postal_code, o.address.country,
             o.items.map((i) => i.quantity + " x " + i.label).join("; "),
@@ -621,6 +689,7 @@
     $("refreshOrders").addEventListener("click", () => loadOrders(false));
     $("loadMoreOrders").addEventListener("click", () => loadOrders(true));
     $("downloadCsv").addEventListener("click", downloadCsv);
+    $("onlyToShip").addEventListener("change", renderOrders);
     $("saveButton").addEventListener("click", save);
     $("addCountryButton").addEventListener("click", addCountry);
     $("newCountryCode").addEventListener("keydown", (event) => {

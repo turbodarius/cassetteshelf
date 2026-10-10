@@ -2,8 +2,46 @@
 // PaymentIntent is an order, and the checkout stores what was bought in
 // its metadata (see createCheckout in index.js). Nothing is copied or
 // stored elsewhere, so refunds made in Stripe show up here too.
+//
+// "Mark as shipped" also lives on the PaymentIntent, as metadata:
+// shipped_at, carrier, tracking_number (visible in Stripe as well).
 
 import { FORMATS } from "./catalog.js";
+import { OrderError } from "./pricing.js";
+
+// Carriers the dashboard offers, with their public tracking pages.
+export const CARRIERS = {
+  "canada-post": { name: "Canada Post", track: "https://www.canadapost-postescanada.ca/track-reperage/en#/search?searchFor=" },
+  ups: { name: "UPS", track: "https://www.ups.com/track?tracknum=" },
+  usps: { name: "USPS", track: "https://tools.usps.com/go/TrackConfirmAction?tLabels=" },
+  fedex: { name: "FedEx", track: "https://www.fedex.com/fedextrack/?trknbr=" },
+  dhl: { name: "DHL", track: "https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=" },
+  purolator: { name: "Purolator", track: "https://www.purolator.com/en/shipping/tracker?pin=" },
+  other: { name: "Other", track: null },
+};
+
+// shipment = { carrier, tracking } marks the order shipped now;
+// shipment = null marks it not shipped (undo). Returns the updated order.
+export async function setShipment(stripe, id, shipment) {
+  if (!/^pi_[A-Za-z0-9]{1,100}$/.test(id ?? "")) throw new OrderError("unknown order");
+  const pi = await stripe.paymentIntents.retrieve(id);
+  if (pi.status !== "succeeded") throw new OrderError("this order isn't paid");
+
+  let metadata;
+  if (shipment) {
+    const carrier = shipment.carrier ?? "";
+    if (!Object.hasOwn(CARRIERS, carrier)) throw new OrderError("choose a carrier");
+    const tracking = typeof shipment.tracking === "string"
+      ? shipment.tracking.replace(/[\u0000-\u001f]/g, "").trim().slice(0, 100)
+      : "";
+    metadata = { shipped_at: new Date().toISOString(), carrier, tracking_number: tracking };
+  } else {
+    // Empty values remove the keys from the PaymentIntent.
+    metadata = { shipped_at: "", carrier: "", tracking_number: "" };
+  }
+  const updated = await stripe.paymentIntents.update(id, { metadata, expand: ["latest_charge"] });
+  return toOrder(updated);
+}
 
 const PAGE_SIZE = 25;
 
@@ -56,7 +94,20 @@ export function toOrder(pi) {
     fees: parseFees(meta.fees),
     tax: toInt(meta.tax_amount),
     paymentMethod: describePayment(charge?.payment_method_details),
+    shipment: meta.shipped_at ? describeShipment(meta) : null,
     stripeUrl: "https://dashboard.stripe.com/" + (pi.livemode ? "" : "test/") + "payments/" + pi.id,
+  };
+}
+
+function describeShipment(meta) {
+  const carrier = Object.hasOwn(CARRIERS, meta.carrier) ? CARRIERS[meta.carrier] : null;
+  const tracking = meta.tracking_number || "";
+  return {
+    at: meta.shipped_at,
+    carrier: meta.carrier || "",
+    carrierName: carrier?.name ?? meta.carrier ?? "",
+    tracking,
+    trackingUrl: carrier?.track && tracking ? carrier.track + encodeURIComponent(tracking) : null,
   };
 }
 
