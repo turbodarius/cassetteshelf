@@ -30,12 +30,22 @@ const ADDRESS = {
 let stripeCalls;
 let realFetch;
 let taxFails;
+let emails, resendStatus;
+let savedMetadata; // metadata updates kept between calls, like Stripe
 
 beforeEach(() => {
   stripeCalls = [];
   taxFails = false;
+  emails = [];
+  resendStatus = 200;
+  savedMetadata = {};
   realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
+    if (new URL(url).hostname === "api.resend.com") {
+      emails.push({ body: JSON.parse(init.body), key: init.headers["Idempotency-Key"] });
+      const error = { message: "The cassetteshelf.com domain is not verified. Please, add and verify your domain." };
+      return new Response(JSON.stringify(resendStatus === 200 ? { id: "email_1" } : error), { status: resendStatus });
+    }
     const path = new URL(url).pathname;
     const params = new URLSearchParams(init.body ?? "");
     stripeCalls.push({ path, params, headers: init.headers });
@@ -66,12 +76,14 @@ beforeEach(() => {
       const pi = structuredClone(SEARCH_PAGE_1.data.find((p) => p.id === piPath[1]) ?? null);
       if (!pi) return respond({ error: { type: "invalid_request_error", message: "No such payment_intent" } }, 404);
       pi.status = piPath[1] === "pi_live2" ? "requires_payment_method" : "succeeded";
+      const saved = (savedMetadata[pi.id] ??= {});
       if (init.method === "POST") {
         for (const [key, value] of params) {
           const m = key.match(/^metadata\[(.+)\]$/);
-          if (m) value === "" ? delete pi.metadata[m[1]] : (pi.metadata[m[1]] = value);
+          if (m) saved[m[1]] = value;
         }
       }
+      for (const [key, value] of Object.entries(saved)) value === "" ? delete pi.metadata[key] : (pi.metadata[key] = value);
       return respond(pi);
     }
     if (path === "/v1/payment_intents/search") {
@@ -546,7 +558,8 @@ const ship = (id, method, body, password = PASSWORD) =>
 test("shipping: marking an order shipped stores carrier + tracking on the payment", async () => {
   const res = await ship("pi_live1", "PUT", { carrier: "canada-post", tracking: " 1234 5678\u0007 " });
   assert.equal(res.status, 200);
-  const order = await res.json();
+  const { order, email } = await res.json();
+  assert.equal(email, null, "no email unless asked");
   const update = stripeCalls.find((c) => c.path === "/v1/payment_intents/pi_live1" && c.params.get("metadata[carrier]"));
   assert.equal(update.params.get("metadata[carrier]"), "canada-post");
   assert.equal(update.params.get("metadata[tracking_number]"), "1234 5678");
@@ -559,9 +572,9 @@ test("shipping: marking an order shipped stores carrier + tracking on the paymen
 });
 
 test("shipping: no tracking number, or 'other' carrier, means no tracking link", async () => {
-  const a = await (await ship("pi_live1", "PUT", { carrier: "ups" })).json();
+  const { order: a } = await (await ship("pi_live1", "PUT", { carrier: "ups" })).json();
   assert.equal(a.shipment.trackingUrl, null);
-  const b = await (await ship("pi_live1", "PUT", { carrier: "other", tracking: "ABC" })).json();
+  const { order: b } = await (await ship("pi_live1", "PUT", { carrier: "other", tracking: "ABC" })).json();
   assert.equal(b.shipment.carrierName, "Other");
   assert.equal(b.shipment.trackingUrl, null);
 });
@@ -569,9 +582,10 @@ test("shipping: no tracking number, or 'other' carrier, means no tracking link",
 test("shipping: undo clears it", async () => {
   const res = await ship("pi_live1", "DELETE");
   assert.equal(res.status, 200);
-  assert.equal((await res.json()).shipment, null);
+  assert.equal((await res.json()).order.shipment, null);
   const update = stripeCalls.find((c) => c.path === "/v1/payment_intents/pi_live1" && c.params.has("metadata[shipped_at]"));
   assert.equal(update.params.get("metadata[shipped_at]"), "");
+  assert.equal(update.params.get("metadata[shipping_email_sent_at]"), "");
 });
 
 test("shipping: refuses bad requests", async () => {
@@ -588,13 +602,140 @@ test("orders: shipped orders say so; the list includes the carrier choices", asy
     const body = await (await call("/admin/orders", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } })).json();
     assert.deepEqual(body.orders[0].shipment, {
       at: "2026-10-10T12:00:00.000Z", carrier: "usps", carrierName: "USPS", tracking: "9400",
-      trackingUrl: "https://tools.usps.com/go/TrackConfirmAction?tLabels=9400",
+      trackingUrl: "https://tools.usps.com/go/TrackConfirmAction?tLabels=9400", emailedAt: null,
     });
     assert.equal(body.orders[1].shipment, null);
     assert.equal(body.carriers["canada-post"], "Canada Post");
   } finally {
     for (const k of ["shipped_at", "carrier", "tracking_number"]) delete SEARCH_PAGE_1.data[0].metadata[k];
   }
+});
+
+// ---- Shipping emails to customers ----
+
+const emailEnv = () => ({ ...adminEnv(), RESEND_API_KEY: "re_test", ORDER_EMAIL_TO: "contact@cassetteshelf.com", CUSTOMER_EMAIL_FROM: "cassetteshelf <orders@cassetteshelf.com>" });
+const adminPost = (path, workerEnv = emailEnv()) =>
+  call(path, { method: "POST", workerEnv, headers: { authorization: "Bearer " + PASSWORD } });
+
+test("shipping email: marking shipped with notify emails the customer and records it", async () => {
+  const res = await call("/admin/orders/pi_live1/shipment", {
+    method: "PUT", body: { carrier: "usps", tracking: "9400", notify: true }, workerEnv: emailEnv(),
+    headers: { authorization: "Bearer " + PASSWORD },
+  });
+  assert.equal(res.status, 200);
+  const { order, email } = await res.json();
+  assert.deepEqual(email, { sent: true, to: "buyer@example.com" });
+  assert.match(order.shipment.emailedAt, /^\d{4}-\d\d-\d\dT/);
+
+  assert.equal(emails.length, 1);
+  const sent = emails[0].body;
+  assert.equal(sent.from, "cassetteshelf <orders@cassetteshelf.com>");
+  assert.deepEqual(sent.to, ["buyer@example.com"]);
+  assert.equal(sent.reply_to, "contact@cassetteshelf.com");
+  assert.equal(sent.subject, "Your cassetteshelf order is on its way");
+  assert.match(sent.text, /Hi Pat,/);
+  assert.match(sent.text, /shipped with USPS/);
+  assert.match(sent.text, /Tracking number: 9400/);
+  assert.match(sent.text, /tLabels=9400/);
+  assert.match(sent.text, /1 × 1x1 cassette shelf/);
+  assert.match(sent.text, /Albany NY 12207\nUnited States/);
+  assert.match(emails[0].key, /^shipping-email-pi_live1-.+-first$/);
+});
+
+test("shipping email: if the email fails, the order is still marked shipped", async () => {
+  resendStatus = 403;
+  const res = await call("/admin/orders/pi_live1/shipment", {
+    method: "PUT", body: { carrier: "ups", notify: true }, workerEnv: emailEnv(),
+    headers: { authorization: "Bearer " + PASSWORD },
+  });
+  assert.equal(res.status, 200);
+  const { order, email } = await res.json();
+  assert.equal(order.shipment.carrierName, "UPS");
+  assert.equal(order.shipment.emailedAt, null);
+  assert.equal(email.sent, false);
+  assert.match(email.error, /verify cassetteshelf\.com in Resend/);
+  assert.ok(!stripeCalls.some((c) => c.params.has("metadata[shipping_email_sent_at]")));
+});
+
+test("shipping email: not set up, or no customer address, is reported", async () => {
+  const notSetUp = await call("/admin/orders/pi_live1/shipment", {
+    method: "PUT", body: { carrier: "ups", notify: true }, workerEnv: adminEnv(),
+    headers: { authorization: "Bearer " + PASSWORD },
+  });
+  assert.match((await notSetUp.json()).email.error, /CUSTOMER_EMAIL_FROM/);
+
+  const pi = SEARCH_PAGE_1.data[0];
+  const saved = pi.receipt_email;
+  pi.receipt_email = null;
+  try {
+    const res = await call("/admin/orders/pi_live1/shipment", {
+      method: "PUT", body: { carrier: "ups", notify: true }, workerEnv: emailEnv(),
+      headers: { authorization: "Bearer " + PASSWORD },
+    });
+    assert.match((await res.json()).email.error, /no customer email/);
+  } finally {
+    pi.receipt_email = saved;
+  }
+  assert.equal(emails.length, 0);
+});
+
+test("shipping email: send again from the order (only once shipped)", async () => {
+  assert.equal((await adminPost("/admin/orders/pi_live1/shipping-email")).status, 400, "not shipped yet");
+  assert.equal((await adminPost("/admin/orders/pi_live2/shipping-email")).status, 400, "unpaid");
+  assert.equal((await adminPost("/admin/orders/nope/shipping-email")).status, 400);
+  assert.equal(emails.length, 0);
+
+  const pi = SEARCH_PAGE_1.data[0];
+  pi.metadata = { ...pi.metadata, shipped_at: "2026-10-10T12:00:00.000Z", carrier: "canada-post", tracking_number: "1234", shipping_email_sent_at: "2026-10-10T12:01:00.000Z" };
+  try {
+    const res = await adminPost("/admin/orders/pi_live1/shipping-email");
+    assert.equal(res.status, 200);
+    const { order, email } = await res.json();
+    assert.equal(email.sent, true);
+    assert.notEqual(order.shipment.emailedAt, "2026-10-10T12:01:00.000Z");
+    assert.equal(emails[0].key, "shipping-email-pi_live1-2026-10-10T12:00:00.000Z-2026-10-10T12:01:00.000Z");
+    assert.match(emails[0].body.text, /shipped with Canada Post/);
+  } finally {
+    for (const k of ["shipped_at", "carrier", "tracking_number", "shipping_email_sent_at"]) delete pi.metadata[k];
+  }
+});
+
+test("shipping email: test email goes to the shop; settings report the sender", async () => {
+  const res = await adminPost("/admin/test-shipping-email");
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { sentTo: "contact@cassetteshelf.com" });
+  assert.deepEqual(emails[0].body.to, ["contact@cassetteshelf.com"]);
+  assert.match(emails[0].body.text, /Tracking number: 1234567890123456/);
+
+  resendStatus = 403;
+  const failed = await adminPost("/admin/test-shipping-email");
+  assert.equal(failed.status, 502);
+  assert.match((await failed.json()).error, /Resend → Domains/);
+
+  assert.equal((await call("/admin/test-shipping-email", { method: "POST", workerEnv: emailEnv(), headers: { authorization: "Bearer x" } })).status, 401);
+
+  const settings = await (await admin(emailEnv())).json();
+  assert.deepEqual(settings.customerEmail, { from: "cassetteshelf <orders@cassetteshelf.com>", ready: true });
+  assert.equal((await (await admin(adminEnv())).json()).customerEmail.ready, false);
+});
+
+test("shipping email: names and addresses are escaped in the HTML", async () => {
+  const pi = SEARCH_PAGE_1.data[0];
+  const saved = pi.shipping.name;
+  pi.shipping.name = "<b>Pat</b> Buyer";
+  try {
+    await call("/admin/orders/pi_live1/shipment", {
+      method: "PUT", body: { carrier: "usps", tracking: "<x>", notify: true }, workerEnv: emailEnv(),
+      headers: { authorization: "Bearer " + PASSWORD },
+    });
+  } finally {
+    pi.shipping.name = saved;
+  }
+  const html = emails[0].body.html;
+  assert.ok(!html.includes("<b>Pat"));
+  assert.ok(html.includes("&lt;b&gt;Pat&lt;/b&gt;"));
+  assert.ok(html.includes("&lt;x&gt;"));
+  assert.ok(html.includes("tLabels=%3Cx%3E"));
 });
 
 // ---- Imported Shopify orders ----

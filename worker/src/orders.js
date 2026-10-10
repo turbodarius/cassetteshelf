@@ -4,7 +4,8 @@
 // stored elsewhere, so refunds made in Stripe show up here too.
 //
 // "Mark as shipped" also lives on the PaymentIntent, as metadata:
-// shipped_at, carrier, tracking_number (visible in Stripe as well).
+// shipped_at, carrier, tracking_number (visible in Stripe as well), and
+// shipping_email_sent_at once the customer was emailed about it.
 
 import { FORMATS } from "./catalog.js";
 import { OrderError } from "./pricing.js";
@@ -37,9 +38,26 @@ export async function setShipment(stripe, id, shipment) {
     metadata = { shipped_at: new Date().toISOString(), carrier, tracking_number: tracking };
   } else {
     // Empty values remove the keys from the PaymentIntent.
-    metadata = { shipped_at: "", carrier: "", tracking_number: "" };
+    metadata = { shipped_at: "", carrier: "", tracking_number: "", shipping_email_sent_at: "" };
   }
   const updated = await stripe.paymentIntents.update(id, { metadata, expand: ["latest_charge"] });
+  return toOrder(updated);
+}
+
+// A paid order by id (for the "send shipping email" button).
+export async function getOrder(stripe, id) {
+  if (!/^pi_[A-Za-z0-9]{1,100}$/.test(id ?? "")) throw new OrderError("unknown order");
+  const pi = await stripe.paymentIntents.retrieve(id, { expand: ["latest_charge"] });
+  if (pi.status !== "succeeded") throw new OrderError("this order isn't paid");
+  return toOrder(pi);
+}
+
+// Records that the customer got the shipping email. Returns the updated order.
+export async function markShippingEmailed(stripe, id) {
+  const updated = await stripe.paymentIntents.update(id, {
+    metadata: { shipping_email_sent_at: new Date().toISOString() },
+    expand: ["latest_charge"],
+  });
   return toOrder(updated);
 }
 
@@ -108,6 +126,7 @@ function describeShipment(meta) {
     carrierName: carrier?.name ?? meta.carrier ?? "",
     tracking,
     trackingUrl: carrier?.track && tracking ? carrier.track + encodeURIComponent(tracking) : null,
+    emailedAt: meta.shipping_email_sent_at || null,
   };
 }
 

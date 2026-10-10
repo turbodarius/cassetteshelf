@@ -14,6 +14,8 @@
 //   POST /admin/test-email               (admin password) sends a sample order email
 //   PUT  /admin/orders/<id>/shipment     (admin password) mark shipped
 //   DELETE /admin/orders/<id>/shipment   (admin password) undo "shipped"
+//   POST /admin/orders/<id>/shipping-email (admin password) (re)send the customer's shipping email
+//   POST /admin/test-shipping-email      (admin password) sends a sample shipping email to the shop
 //
 // Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY,
 //   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password),
@@ -26,10 +28,12 @@
 import Stripe from "stripe";
 import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
 import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
-import { CARRIERS, listOrders, setShipment } from "./orders.js";
+import { CARRIERS, getOrder, listOrders, markShippingEmailed, setShipment, toOrder } from "./orders.js";
 import { PERIODS, analyticsReport, recordEvent } from "./analytics.js";
 import { clearLegacyOrders, importLegacyOrders, legacyToOrder, loadLegacyOrders } from "./legacy.js";
-import { emailConfigured, sampleOrderPaymentIntent, sendOrderEmail } from "./email.js";
+import {
+  customerEmailConfigured, emailConfigured, sampleOrderPaymentIntent, sendOrderEmail, sendShippingEmail,
+} from "./email.js";
 import {
   OrderError,
   cleanAddress,
@@ -110,6 +114,24 @@ export default {
   },
 };
 
+// Emails the customer of a shipped order and records it on the order.
+// -> { order, email: { sent: true, to } | { sent: false, error } }
+async function emailShipping(env, stripe, order) {
+  try {
+    // A double click sends one email; "send again" after a sent email
+    // gets a new key because the last send time is part of it.
+    const to = await sendShippingEmail(env, order, {
+      idempotencyKey: ["shipping-email", order.id, order.shipment.at, order.shipment.emailedAt ?? "first"].join("-"),
+    });
+    const updated = await markShippingEmailed(stripe, order.id);
+    return { order: updated, email: { sent: true, to } };
+  } catch (err) {
+    if (err instanceof OrderError) throw err;
+    console.error(err);
+    return { order, email: { sent: false, error: err.message } };
+  }
+}
+
 // The dashboard's API. Every request needs the admin password
 // (ADMIN_TOKEN secret) as "Authorization: Bearer <password>".
 async function handleAdmin(request, env, cors, url) {
@@ -141,6 +163,23 @@ async function handleAdmin(request, env, cors, url) {
     return json({ sentTo: env.ORDER_EMAIL_TO }, 200, cors);
   }
 
+  if (url.pathname === "/admin/test-shipping-email") {
+    if (request.method !== "POST") return json({ error: "not found" }, 404, cors);
+    const to = (env.ORDER_EMAIL_TO ?? "").split(",")[0].trim();
+    if (!to) return json({ error: "ORDER_EMAIL_TO isn't set in wrangler.toml" }, 400, cors);
+    const sample = sampleOrderPaymentIntent();
+    Object.assign(sample.metadata, {
+      shipped_at: new Date().toISOString(), carrier: "canada-post", tracking_number: "1234567890123456",
+    });
+    const order = toOrder(sample);
+    try {
+      await sendShippingEmail(env, order, { to });
+    } catch (err) {
+      return json({ error: err.message }, 502, cors);
+    }
+    return json({ sentTo: to }, 200, cors);
+  }
+
   if (url.pathname === "/admin/legacy-orders") {
     if (request.method === "GET") {
       return json({ orders: (await loadLegacyOrders(env)).map(legacyToOrder) }, 200, cors);
@@ -168,13 +207,27 @@ async function handleAdmin(request, env, cors, url) {
   if (shipment) {
     const id = shipment[1];
     if (request.method === "PUT") {
-      const body = await request.json().catch(() => ({}));
-      return json(await setShipment(stripeClient(env), id, body ?? {}), 200, cors);
+      const body = (await request.json().catch(() => null)) ?? {};
+      const stripe = stripeClient(env);
+      const order = await setShipment(stripe, id, body);
+      if (!body.notify) return json({ order, email: null }, 200, cors);
+      // Marking shipped stands even if the email fails; the dashboard
+      // shows the error and a button to try again.
+      return json(await emailShipping(env, stripe, order), 200, cors);
     }
     if (request.method === "DELETE") {
-      return json(await setShipment(stripeClient(env), id, null), 200, cors);
+      return json({ order: await setShipment(stripeClient(env), id, null) }, 200, cors);
     }
     return json({ error: "not found" }, 404, cors);
+  }
+
+  const shippingEmailRoute = url.pathname.match(/^\/admin\/orders\/([^/]+)\/shipping-email$/);
+  if (shippingEmailRoute) {
+    if (request.method !== "POST") return json({ error: "not found" }, 404, cors);
+    const stripe = stripeClient(env);
+    const order = await getOrder(stripe, shippingEmailRoute[1]);
+    if (!order.shipment) throw new OrderError("mark the order as shipped first");
+    return json(await emailShipping(env, stripe, order), 200, cors);
   }
 
   if (url.pathname !== "/admin/settings") return json({ error: "not found" }, 404, cors);
@@ -186,6 +239,7 @@ async function handleAdmin(request, env, cors, url) {
       updatedAt,
       storageReady: Boolean(env.SETTINGS),
       orderEmail: { to: env.ORDER_EMAIL_TO ?? "", ready: emailConfigured(env) },
+      customerEmail: { from: env.CUSTOMER_EMAIL_FROM ?? "", ready: customerEmailConfigured(env) },
       sizes: SIZES,
       formats: Object.fromEntries(Object.entries(FORMATS).map(([id, f]) => [id, { label: f.label }])),
     }, 200, cors);
