@@ -5,7 +5,8 @@
    Only the rules the window needs to WORK are below. All visual design
    is yours. Hooks available:
 
-   .cart-button                 floating "cart (n)" button (hidden when empty)
+   .cart-button                 floating cart button (hidden when empty)
+     .cart-button-icon / -count   the cart icon and the item count badge
    .checkout                    the <dialog>; ::backdrop is the dimmed page
      .is-loading                  ...while prices/tax are being fetched
      .is-busy                     ...while a payment is processing
@@ -72,12 +73,51 @@ body:has(.checkout[open]) {
     font: inherit;
 }
 
-/* Above the site's sticky headers. */
+/* Floating cart button: round, with the cart icon, like the configurator's
+   buttons, and the number of items in a small black circle on its corner.
+   z-index keeps it above the site's sticky headers. */
 .cart-button {
     position: fixed;
     right: 20px;
     bottom: 20px;
     z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border: 1.5px solid black;
+    border-radius: 50%;
+    background: white;
+    color: black;
+    cursor: pointer;
+}
+
+.cart-button:active {
+    transform: scale(0.95);
+}
+
+.cart-button-icon {
+    width: 30px;
+    height: 30px;
+}
+
+.cart-button-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border-radius: 11px;
+    background: black;
+    color: white;
+    font-family: "vag", sans-serif;
+    font-size: 13px;
+    line-height: 22px;
+    text-align: center;
 }
 
 .checkout.is-busy .checkout-pay {
