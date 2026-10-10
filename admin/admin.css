@@ -523,3 +523,236 @@ input.is-invalid {
     width: 16rem;
     max-width: 100%;
 }
+
+/* ---- Analytics ---- */
+
+.analytics-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.periods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hero {
+    margin: 4px 0 0;
+    font-size: clamp(3rem, 2rem + 4vw, 4.5rem);
+    line-height: 1;
+}
+
+.hero-note {
+    margin: 8px 0 0;
+    color: #555;
+}
+
+.tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.tile {
+    padding: 12px 14px;
+    border: 1px solid var(--pale);
+    border-radius: 16px;
+}
+
+.tile-label {
+    margin: 0;
+    color: #555;
+}
+
+.tile-value {
+    margin: 4px 0 0;
+    font-size: 1.6rem;
+    font-weight: bold;
+}
+
+.tile-note {
+    margin: 2px 0 0;
+    color: #555;
+    font-size: 0.85rem;
+}
+
+.chart {
+    position: relative;
+    margin-top: 8px;
+}
+
+.chart svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+}
+
+.chart .grid {
+    stroke: #e6e6e6;
+    stroke-width: 1;
+}
+
+.chart .baseline {
+    stroke: #b3b3b3;
+    stroke-width: 1;
+}
+
+.chart .axis {
+    fill: #555;
+    font-size: 12px;
+}
+
+.chart .bar {
+    fill: black;
+}
+
+.chart .hit {
+    fill: transparent;
+    cursor: default;
+}
+
+.chart .hit:hover + .bar,
+.chart .is-hover {
+    fill: #555;
+}
+
+.tooltip {
+    position: absolute;
+    z-index: 5;
+    padding: 6px 10px;
+    border: 1px solid black;
+    border-radius: 10px;
+    background: white;
+    pointer-events: none;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.tooltip strong {
+    display: block;
+    font-size: 1rem;
+}
+
+details.table-view {
+    margin-top: 8px;
+    color: #555;
+}
+
+details.table-view summary {
+    cursor: pointer;
+}
+
+.data-table {
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 2px 16px 2px 0;
+    text-align: left;
+}
+
+.data-table td.num {
+    text-align: right;
+}
+
+/* Ranked lists and the funnel: label, thin bar, value. */
+.lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 8px 32px;
+}
+
+.list h3 {
+    margin: 16px 0 8px;
+    font-size: 1.1rem;
+}
+
+.rank {
+    display: grid;
+    grid-template-columns: minmax(6rem, 48%) 1fr auto;
+    align-items: center;
+    gap: 4px 10px;
+    margin: 0 0 6px;
+}
+
+.rank-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rank-track {
+    height: 10px;
+}
+
+.rank-bar {
+    height: 100%;
+    min-width: 2px;
+    border-radius: 0 4px 4px 0;
+    background: black;
+}
+
+.rank-value {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.funnel .rank {
+    grid-template-columns: minmax(8rem, 30%) 1fr auto;
+}
+
+.empty {
+    color: #555;
+}
+
+.abandoned-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.abandoned-table th {
+    color: #555;
+    font-weight: normal;
+    text-align: left;
+    padding: 6px 12px 6px 0;
+    border-bottom: 1px solid var(--pale);
+}
+
+.abandoned-table td {
+    padding: 8px 12px 8px 0;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.abandoned-table a {
+    color: inherit;
+}
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+@media (max-width: 560px) {
+    .tiles {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Funnel: step name on its own line, then bar + numbers. */
+    .funnel .rank {
+        grid-template-columns: 1fr auto;
+        margin-bottom: 10px;
+    }
+
+    .funnel .rank-label {
+        grid-column: 1 / -1;
+    }
+}

@@ -89,6 +89,16 @@
 
     let dialog, form, els;
 
+    // Checkout steps for the dashboard's Analytics tab (track.js).
+    const tracked = new Set();
+    function track(type, detail, oncePerPage) {
+        if (oncePerPage) {
+            if (tracked.has(type)) return;
+            tracked.add(type);
+        }
+        if (window.cassetteTrack) window.cassetteTrack(type, detail);
+    }
+
     // ---- Cart storage -----------------------------------------------------
 
     function loadCart() {
@@ -116,6 +126,7 @@
         } else {
             cart.push({ format, size, quantity: 1 });
         }
+        track("add_to_cart", format + ":" + size);
         saveCart();
         open();
     }
@@ -142,6 +153,7 @@
         showView("form");
         renderItems();
         if (!dialog.open) dialog.showModal();
+        track("checkout_open", "", true);
         setup()
             .then(() => scheduleQuote(0))
             .catch(() => showMessage("checkout is unavailable right now, please try again later."));
@@ -249,6 +261,8 @@
                 name: event.value.name || "",
                 address: { ...event.value.address },
             };
+            // "Entered an address" = typed more than the pre-filled country.
+            if (shippingDetails.address.line1) track("checkout_address", shippingDetails.address.country, true);
             // A new country changes shipping options right away; other
             // edits wait for a pause in typing.
             scheduleQuote(shippingDetails.address.country !== previousCountry ? 0 : 600);
@@ -365,6 +379,7 @@
             if (!quote || !quote.total) {
                 throw new Error((quote && quote.taxError) || "please complete your shipping address.");
             }
+            track("checkout_submit");
 
             const data = new FormData(form);
             const request = orderRequest();
@@ -404,6 +419,7 @@
 
     function finishPayment(paymentIntent, email) {
         if (paymentIntent.status === "succeeded" || paymentIntent.status === "processing") {
+            track("purchase");
             cart = [];
             saveCart();
             quote = null;

@@ -8,6 +8,7 @@ secret key and can't change what a customer is charged.
 
 | File | What it's for |
 |---|---|
+| `src/analytics.js` | Records anonymous visits / checkout steps and builds the Analytics tab's report. |
 | `src/orders.js` | Reads paid orders from Stripe for the dashboard's Orders tab. |
 | `src/settings.js` | Loads, checks and saves the store settings edited in the `/admin` dashboard. |
 | `src/shipping.js` | Starting countries, shipping rates and fees (until the dashboard's first save). |
@@ -110,6 +111,27 @@ tracking number on the payment in Stripe (metadata `shipped_at`, `carrier`,
 ship are labelled and counted, and **Only show orders to ship** filters the
 list. **Undo** clears it. Carriers and their tracking pages are listed in
 `CARRIERS` in `src/orders.js`.
+
+The **Analytics** tab (7 days / 30 days / 90 days / 12 months) shows:
+
+- **Sales** from Stripe: revenue after refunds, orders, average order,
+  conversion, revenue per day, best sellers, sales by country, shipping chosen,
+  fees collected.
+- **Traffic** from the site itself: visitors, page views, visitors per day, top
+  pages, where visitors come from, countries, devices, most added to cart.
+- **Checkout funnel**: how many visitors visited → added to cart → opened
+  checkout → entered an address → pressed Purchase → paid.
+- **Abandoned purchases**: people who pressed Purchase but didn't pay, with
+  their contact details from Stripe, what happened (e.g. card declined) and
+  whether they bought later.
+
+Traffic is counted by `track.js` on the site, sent to `POST /track` and kept in
+a Cloudflare D1 database (`ANALYTICS` in `wrangler.toml`, created by the first
+`npm run deploy`). It's anonymous: no cookies, nothing stored in the visitor's
+browser, no IP addresses saved. Each visitor gets a code made from a random
+value that changes daily and is then deleted, so people can't be followed
+across days. Bots, the admin page and browsers set to "Do Not Track" aren't
+counted, and events older than about 13 months are removed.
 
 ### One-time setup
 

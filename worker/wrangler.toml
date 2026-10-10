@@ -18,6 +18,12 @@ COLLECT_TAX = "false"
 [[kv_namespaces]]
 binding = "SETTINGS"
 
+# Anonymous analytics events (page visits, checkout steps) for the
+# dashboard's Analytics tab. Also created by `npm run deploy` the first time.
+[[d1_databases]]
+binding = "ANALYTICS"
+database_name = "cassetteshelf-analytics"
+
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put STRIPE_SECRET_KEY
 #   npx wrangler secret put STRIPE_WEBHOOK_SECRET

@@ -7,6 +7,8 @@
 //   POST /webhook         Stripe webhook: records the tax transaction once paid
 //   GET  /admin/settings  (admin password) current store settings
 //   PUT  /admin/settings  (admin password) saves store settings
+//   POST /track           anonymous page-view / checkout-step event (analytics)
+//   GET  /admin/analytics (admin password) traffic, funnel, sales, abandoned checkouts
 //   GET  /admin/orders    (admin password) paid orders from Stripe, newest first
 //   PUT  /admin/orders/<id>/shipment     (admin password) mark shipped
 //   DELETE /admin/orders/<id>/shipment   (admin password) undo "shipped"
@@ -15,11 +17,13 @@
 //   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password)
 // Vars (wrangler.toml): STRIPE_PUBLISHABLE_KEY, ALLOWED_ORIGINS, COLLECT_TAX
 // KV (wrangler.toml): SETTINGS, where the dashboard saves the settings
+// D1 (wrangler.toml): ANALYTICS, anonymous visit and checkout-step events
 
 import Stripe from "stripe";
 import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
 import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
 import { CARRIERS, listOrders, setShipment } from "./orders.js";
+import { PERIODS, analyticsReport, recordEvent } from "./analytics.js";
 import {
   OrderError,
   cleanAddress,
@@ -46,6 +50,19 @@ export default {
 
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    // Analytics events: always answered with 204 (a tracking problem must
+    // never affect the visitor), and only recorded from our own sites.
+    if (url.pathname === "/track" && request.method === "POST") {
+      if (cors["Access-Control-Allow-Origin"]) {
+        try {
+          await recordEvent(env, request);
+        } catch (err) {
+          console.error("track failed", err);
+        }
+      }
       return new Response(null, { status: 204, headers: cors });
     }
 
@@ -96,6 +113,13 @@ async function handleAdmin(request, env, cors, url) {
   const given = (request.headers.get("authorization") ?? "").replace(/^Bearer /, "");
   if (!(await sameSecret(given, env.ADMIN_TOKEN))) {
     return json({ error: "wrong password" }, 401, cors);
+  }
+
+  if (url.pathname === "/admin/analytics") {
+    if (request.method !== "GET") return json({ error: "not found" }, 404, cors);
+    const days = Number(url.searchParams.get("days"));
+    const report = await analyticsReport(env, stripeClient(env), PERIODS.includes(days) ? days : 30);
+    return json(report, 200, cors);
   }
 
   if (url.pathname === "/admin/orders") {

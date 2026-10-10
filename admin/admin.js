@@ -64,6 +64,8 @@
         orders = [];
         nextOrdersPage = null;
         ordersLoaded = false;
+        analyticsLoaded = false;
+        analyticsData = null;
         showTab("settings");
         $("loginView").hidden = false;
         $("password").value = "";
@@ -394,11 +396,16 @@
         });
         $("settingsTab").hidden = name !== "settings";
         $("ordersTab").hidden = name !== "orders";
+        $("analyticsTab").hidden = name !== "analytics";
         document.querySelectorAll("[data-settings-only]").forEach((node) => {
             node.hidden = name !== "settings";
         });
         hideMessage();
         if (name === "orders" && !ordersLoaded) loadOrders(false);
+        if (name === "analytics") {
+            if (!analyticsLoaded) loadAnalytics();
+            else requestAnimationFrame(() => charts.forEach((draw) => draw()));
+        }
     }
 
     // ---- Orders -----------------------------------------------------------
@@ -623,6 +630,300 @@
         return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
+    // ---- Analytics ------------------------------------------------------------
+
+    let analyticsDays = 30;
+    let analyticsLoaded = false;
+    let analyticsData = null;
+
+    const STEP_LABELS = {
+        pageview: "Visited the site",
+        add_to_cart: "Added to cart",
+        checkout_open: "Opened checkout",
+        checkout_address: "Entered an address",
+        checkout_submit: "Pressed Purchase",
+        purchase: "Paid",
+    };
+
+    async function loadAnalytics() {
+        const button = $("refreshAnalytics");
+        button.disabled = true;
+        const root = $("analytics");
+        if (!analyticsData) root.replaceChildren(el("p", { className: "hint", textContent: "Loading analytics…" }));
+        try {
+            analyticsData = await api("GET", null, "/admin/analytics?days=" + analyticsDays);
+            analyticsLoaded = true;
+            hideMessage();
+            renderAnalytics();
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            root.replaceChildren();
+            showMessage("Couldn't load analytics: " + err.message, true);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function renderAnalytics() {
+        const d = analyticsData;
+        const t = d.traffic;
+        const s = d.sales;
+        const root = $("analytics");
+        root.replaceChildren();
+        charts = [];
+
+        // Headline: revenue, then the key numbers.
+        const head = el("section", { className: "card" },
+            el("h2", { textContent: "Revenue" }),
+            el("p", { className: "hero", textContent: cad(s.revenue) }),
+            el("p", { className: "hero-note", textContent:
+                periodText(d) + " · after " + cad(s.refunded) + " in refunds" + (s.truncated ? " · showing the latest 1,000 orders" : "") }),
+        );
+        const conversion = t && t.visitors ? (100 * s.orders / t.visitors) : null;
+        head.append(el("div", { className: "tiles" },
+            tile("Visitors", t ? number(t.visitors) : "—", t ? null : "visit tracking not set up"),
+            tile("Page views", t ? number(t.views) : "—"),
+            tile("Orders", number(s.orders), number(s.shelvesSold) + " shelves"),
+            tile("Conversion", conversion === null ? "—" : conversion.toFixed(1) + "%", "visitors who ordered"),
+            tile("Average order", s.orders ? cad(s.averageOrder) : "—"),
+            tile("Abandoned", number(d.abandoned.count), d.abandoned.count ? cad(d.abandoned.value) + " not paid" : "pressed Purchase, didn't pay"),
+        ));
+        root.append(head);
+
+        if (!t) {
+            root.append(el("div", { className: "message", textContent:
+                "Visit tracking isn't set up yet, so visitors, the funnel and page lists are empty. It's set up by the next `npm run deploy` (see worker/README.md)." }));
+        }
+
+        // Daily charts (one measure each).
+        const byDay = (rows, key) => new Map(rows.map((r) => [r.day, r[key]]));
+        if (t) {
+            const visitors = byDay(t.daily, "visitors");
+            root.append(chartCard("Visitors per day", d.dayList, d.dayList.map((day) => visitors.get(day) || 0), number, "visitors"));
+        }
+        const revenue = byDay(s.daily, "revenue");
+        root.append(chartCard("Revenue per day", d.dayList, d.dayList.map((day) => revenue.get(day) || 0), cad, "revenue", (v) => compactMoney(v)));
+
+        // Funnel.
+        if (t) {
+            const funnel = el("section", { className: "card funnel" }, el("h2", { textContent: "Checkout funnel" }),
+                el("p", { className: "hint", textContent: "Visitors who reached each step (a visitor counts once per day). The drop between two steps is where people leave." }));
+            const top = t.funnel[0].visitors || 0;
+            t.funnel.forEach((step, i) => {
+                const pct = top ? Math.round((100 * step.visitors) / top) : 0;
+                const prev = i > 0 ? t.funnel[i - 1].visitors : null;
+                const note = i > 0 && prev ? " · " + Math.round((100 * step.visitors) / prev) + "% of previous" : "";
+                funnel.append(rankRow(STEP_LABELS[step.step], step.visitors, top, number(step.visitors) + " (" + pct + "%)" + note));
+            });
+            root.append(funnel);
+        }
+
+        // Ranked lists.
+        const lists = el("div", { className: "lists" });
+        if (t) {
+            lists.append(
+                rankList("Top pages", t.pages.map((p) => [p.path === "/" ? "/ (home)" : p.path, p.views]), number, "view"),
+                rankList("Where visitors come from", t.referrers.map((r) => [r.source, r.visitors]), number),
+                rankList("Visitor countries", t.countries.map((c) => [countryName(c.country), c.visitors]), number),
+                rankList("Devices", t.devices.map((x) => [capitalizeWord(x.device), x.visitors]), number),
+                rankList("Most added to cart", t.addedToCart.map((a) => [cartLabel(a.detail), a.times]), number, "time"),
+            );
+        }
+        lists.append(
+            rankList("Best sellers", s.bestSellers.map((b) => [b.key, b.value]), number),
+            rankList("Sales by country", s.countries.map((c) => [countryName(c.key), c.value]), cad),
+            rankList("Shipping chosen", s.shippingOptions.map((o) => [capitalizeWord(o.key), o.value]), number, "order"),
+            rankList("Fees collected", s.fees.map((f) => [capitalizeWord(f.key), f.value]), cad),
+        );
+        root.append(el("section", { className: "card" }, el("h2", { textContent: "Details" }), lists));
+
+        root.append(abandonedCard(d.abandoned));
+    }
+
+    function periodText(d) {
+        const fmt = (day) => new Date(day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        return fmt(d.from) + " – " + fmt(d.to);
+    }
+
+    function tile(label, value, note) {
+        return el("div", { className: "tile" },
+            el("p", { className: "tile-label", textContent: label }),
+            el("p", { className: "tile-value", textContent: value }),
+            note ? el("p", { className: "tile-note", textContent: note }) : "");
+    }
+
+    // A column chart of one value per day, with hover tooltips and a table view.
+    function chartCard(title, days, values, format, unit, tickFormat = number) {
+        const card = el("section", { className: "card" }, el("h2", { textContent: title }));
+        const total = values.reduce((a, b) => a + b, 0);
+        card.append(el("p", { className: "hint", textContent: format(total) + " in total" }));
+        const box = el("div", { className: "chart" });
+        card.append(box);
+        // Drawn once laid out (it needs the card's width), and again on resize.
+        requestAnimationFrame(() => drawColumns(box, days, values, format, tickFormat));
+        charts.push(() => drawColumns(box, days, values, format, tickFormat));
+
+        const table = el("table", { className: "data-table" },
+            el("tr", {}, el("th", { textContent: "Day" }), el("th", { textContent: capitalizeWord(unit) })),
+            ...days.map((day, i) => el("tr", {}, el("td", { textContent: day }), el("td", { className: "num", textContent: format(values[i]) }))));
+        card.append(el("details", { className: "table-view" }, el("summary", { textContent: "Show as table" }), table));
+        return card;
+    }
+
+    let charts = [];
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => charts.forEach((draw) => draw()), 150);
+    });
+
+    function drawColumns(box, days, values, format, tickFormat) {
+        if (!box.isConnected) return;
+        const NS = "http://www.w3.org/2000/svg";
+        const svgEl = (tag, attrs) => {
+            const node = document.createElementNS(NS, tag);
+            for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+            return node;
+        };
+        const width = Math.max(box.clientWidth, 200);
+        const height = 180;
+        const left = 52, bottom = 22, top = 8;
+        const plotW = width - left, plotH = height - bottom - top;
+        const max = niceMax(Math.max(...values, 0));
+        const slot = plotW / days.length;
+        const barW = Math.min(24, Math.max(1, slot - 2));      // 2px gap between bars, 24px cap
+        const y = (v) => top + plotH - (max ? (v / max) * plotH : 0);
+
+        const svg = svgEl("svg", { viewBox: "0 0 " + width + " " + height, height, role: "img", "aria-label": "" });
+        for (const tick of [0, max / 2, max]) {
+            svg.append(svgEl("line", { class: tick ? "grid" : "baseline", x1: left, x2: width, y1: y(tick), y2: y(tick) }));
+            const label = svgEl("text", { class: "axis", x: left - 8, y: y(tick) + 4, "text-anchor": "end" });
+            label.textContent = tickFormat(tick);
+            svg.append(label);
+        }
+        // Date labels: first, middle, last.
+        const dayLabel = (day) => new Date(day + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        [0, Math.floor((days.length - 1) / 2), days.length - 1].forEach((i, n) => {
+            const label = svgEl("text", { class: "axis", x: left + slot * i + slot / 2, y: height - 4, "text-anchor": ["start", "middle", "end"][n] });
+            if (n === 0) label.setAttribute("x", left);
+            if (n === 2) label.setAttribute("x", width);
+            label.textContent = dayLabel(days[i]);
+            svg.append(label);
+        });
+
+        const tip = el("div", { className: "tooltip", hidden: true });
+        days.forEach((day, i) => {
+            const v = values[i];
+            const x = left + slot * i + (slot - barW) / 2;
+            const h = Math.max(0, y(0) - y(v));
+            // Hit target: the whole day's column, bigger than the bar.
+            const hit = svgEl("rect", { class: "hit", x: left + slot * i, y: top, width: slot, height: plotH });
+            const bar = svgEl("path", { class: "bar", d: h > 0 ? columnPath(x, y(0), barW, h) : "" });
+            hit.addEventListener("pointerenter", () => {
+                bar.classList.add("is-hover");
+                tip.replaceChildren(el("strong", { textContent: format(v) }), document.createTextNode(dayLabel(day)));
+                tip.hidden = false;
+                const tipX = Math.min(Math.max(left + slot * i + slot / 2 - tip.offsetWidth / 2, 0), width - tip.offsetWidth);
+                tip.style.left = tipX + "px";
+                tip.style.top = Math.max(y(v) - tip.offsetHeight - 8, 0) + "px";
+            });
+            hit.addEventListener("pointerleave", () => {
+                bar.classList.remove("is-hover");
+                tip.hidden = true;
+            });
+            svg.append(hit, bar);
+        });
+        box.replaceChildren(svg, tip);
+    }
+
+    // A column rising from the baseline: square at the bottom, 4px rounded top.
+    function columnPath(x, base, w, h) {
+        const r = Math.min(4, w / 2, h);
+        return "M" + x + "," + base + "V" + (base - h + r) + "Q" + x + "," + (base - h) + " " + (x + r) + "," + (base - h) +
+            "H" + (x + w - r) + "Q" + (x + w) + "," + (base - h) + " " + (x + w) + "," + (base - h + r) + "V" + base + "Z";
+    }
+
+    // Rounds the top of the scale up to a clean number (1, 2, 5 x 10^n).
+    function niceMax(value) {
+        if (value <= 0) return 1;
+        const power = Math.pow(10, Math.floor(Math.log10(value)));
+        for (const step of [1, 2, 5, 10]) if (step * power >= value) return step * power;
+        return 10 * power;
+    }
+
+    function rankList(title, rows, format, unit) {
+        const list = el("div", { className: "list" }, el("h3", { textContent: title }));
+        if (rows.length === 0) {
+            list.append(el("p", { className: "empty", textContent: "Nothing yet" }));
+            return list;
+        }
+        const max = Math.max(...rows.map((r) => r[1]));
+        rows.forEach(([label, value]) =>
+            list.append(rankRow(label, value, max, format(value) + (unit ? " " + (value === 1 ? unit : unit + "s") : ""))));
+        return list;
+    }
+
+    function rankRow(label, value, max, text) {
+        return el("div", { className: "rank" },
+            el("span", { className: "rank-label", textContent: label, title: label }),
+            el("div", { className: "rank-track" }, el("div", { className: "rank-bar", style: "width:" + (max ? (100 * value) / max : 0) + "%" })),
+            el("span", { className: "rank-value", textContent: text }));
+    }
+
+    function abandonedCard(abandoned) {
+        const card = el("section", { className: "card" }, el("h2", { textContent: "Abandoned purchases" }),
+            el("p", { className: "hint", textContent:
+                "People who pressed Purchase but didn't pay. Their details are in Stripe, so you can follow up; " +
+                "\"bought later\" means the same email paid afterwards." + (abandoned.truncated ? " Showing the most recent ones." : "") }));
+        if (abandoned.list.length === 0) {
+            card.append(el("p", { className: "empty", textContent: "None in this period." }));
+            return card;
+        }
+        const head = el("tr", {}, ...["Date", "Customer", "Cart", "Amount", "What happened", ""].map((h) => el("th", { textContent: h })));
+        const rows = abandoned.list.map((a) => el("tr", {},
+            el("td", { textContent: new Date(a.created).toLocaleString() }),
+            el("td", {},
+                el("div", { textContent: a.customer.name || "—" }),
+                a.customer.email ? el("a", { href: "mailto:" + a.customer.email, textContent: a.customer.email }) : "",
+                a.country ? el("div", { className: "tile-note", textContent: countryName(a.country) }) : ""),
+            el("td", { textContent: a.items.map((i) => i.quantity + " × " + i.label).join(", ") }),
+            el("td", { textContent: cad(a.amount) }),
+            el("td", {},
+                document.createTextNode(capitalizeWord(a.reason)),
+                a.purchasedLater ? el("div", {}, el("span", { className: "badge badge-shipped", textContent: "bought later" })) : ""),
+            el("td", {}, el("a", { href: a.stripeUrl, target: "_blank", rel: "noopener", textContent: "Stripe ↗" })),
+        ));
+        card.append(el("div", { className: "table-scroll" }, el("table", { className: "abandoned-table" }, el("thead", {}, head), el("tbody", {}, ...rows))));
+        return card;
+    }
+
+    function number(n) {
+        return Math.round(n).toLocaleString();
+    }
+
+    // 1234500 cents -> "12.3K$"
+    function compactMoney(cents) {
+        const dollars = cents / 100;
+        if (dollars >= 1000) return (dollars / 1000).toFixed(dollars >= 10000 ? 0 : 1).replace(/\.0$/, "") + "K$";
+        return Math.round(dollars) + "$";
+    }
+
+    function countryName(code) {
+        if (!code || code === "?") return "Unknown";
+        try {
+            return new Intl.DisplayNames(["en"], { type: "region" }).of(code) || code;
+        } catch (e) {
+            return code;
+        }
+    }
+
+    // "cassette:2x2" -> "2x2 cassette shelf"
+    function cartLabel(detail) {
+        const [format, size] = (detail || "").split(":");
+        const label = meta && meta.formats[format] ? meta.formats[format].label : format;
+        return size ? size + " " + label : detail;
+    }
+
     // ---- Status and messages --------------------------------------------
 
     function setDirty(value) {
@@ -690,6 +991,14 @@
     $("loadMoreOrders").addEventListener("click", () => loadOrders(true));
     $("downloadCsv").addEventListener("click", downloadCsv);
     $("onlyToShip").addEventListener("change", renderOrders);
+    $("refreshAnalytics").addEventListener("click", loadAnalytics);
+    document.querySelectorAll(".periods [data-days]").forEach((button) => {
+        button.addEventListener("click", () => {
+            analyticsDays = Number(button.dataset.days);
+            document.querySelectorAll(".periods [data-days]").forEach((b) => b.classList.toggle("is-active", b === button));
+            loadAnalytics();
+        });
+    });
     $("saveButton").addEventListener("click", save);
     $("addCountryButton").addEventListener("click", addCountry);
     $("newCountryCode").addEventListener("keydown", (event) => {
