@@ -524,10 +524,6 @@
                     <section class="checkout-section checkout-contact">
                         <h3>contact</h3>
                         <label class="checkout-field">
-                            <span>name</span>
-                            <input name="name" autocomplete="name" required>
-                        </label>
-                        <label class="checkout-field">
                             <span>email</span>
                             <input type="email" name="email" autocomplete="email" required>
                         </label>
@@ -539,38 +535,11 @@
 
                     <section class="checkout-section checkout-address">
                         <h3>shipping address</h3>
-                        <label class="checkout-field">
-                            <span>country</span>
-                            <select name="country" autocomplete="country" required>
-                                <option value="">choose a country</option>
-                            </select>
-                        </label>
-                        <label class="checkout-field">
-                            <span>address</span>
-                            <input name="line1" autocomplete="address-line1" required>
-                        </label>
-                        <label class="checkout-field">
-                            <span>apartment, suite, etc. (optional)</span>
-                            <input name="line2" autocomplete="address-line2">
-                        </label>
-                        <label class="checkout-field">
-                            <span>city</span>
-                            <input name="city" autocomplete="address-level2" required>
-                        </label>
-                        <!-- data-state-field: hidden by checkout.js for countries
-                             without a province/state list (REGIONS in checkout.js) -->
-                        <label class="checkout-field" data-state-field>
-                            <!-- checkout.js swaps this text to "province" / "state" -->
-                            <span data-state-label>province / state</span>
-                            <select name="state" autocomplete="address-level1" required>
-                                <option value="">choose a country first</option>
-                            </select>
-                        </label>
-                        <label class="checkout-field">
-                            <!-- checkout.js swaps this text to "postal code" / "zip code" -->
-                            <span data-postal-label>postal / zip code</span>
-                            <input name="postal_code" autocomplete="postal-code" required>
-                        </label>
+                        <!-- Stripe's address form (name, country, address with
+                             autocomplete, city, province/state, postal code) is
+                             drawn in here, in a secure iframe. Style it with
+                             APPEARANCE at the top of checkout.js, not with CSS. -->
+                        <div id="checkoutAddressElement" class="checkout-address-element"></div>
                     </section>
 
                     <!-- Shipping choices and totals share one set of columns

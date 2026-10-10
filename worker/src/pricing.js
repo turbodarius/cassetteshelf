@@ -83,7 +83,7 @@ export function countryList() {
 }
 
 // Countries whose addresses need a province/state. Other countries are
-// shipped to without one (the checkout window hides that field for them).
+// shipped to without one (Stripe's address form adapts to each country).
 const COUNTRIES_WITH_STATES = ["CA", "US"];
 
 function needsState(country) {

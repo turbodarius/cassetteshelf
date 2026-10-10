@@ -82,9 +82,9 @@ markup) and adds tax to the total once the address is complete. Set it back to
 ## Changing shipping rates or prices
 
 - **Shipping:** edit `src/shipping.js` (amounts in cents, CAD). Countries use
-  their two-letter ISO code (`FR`, `GB`, `DE`, ...). New countries just work: the
-  province/state field only appears for countries listed in `REGIONS` in
-  `../checkout.js` (Canada and the US).
+  their two-letter ISO code (`FR`, `GB`, `DE`, ...). New countries just work:
+  the checkout's address form (Stripe's, with autocomplete) offers exactly the
+  countries listed there and adapts its fields to each country's format.
 - **Percentage fees (e.g. tariffs):** add a `fees` list to a country in
   `src/shipping.js`:
   ```js

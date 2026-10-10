@@ -18,8 +18,8 @@
        .checkout-item-image / -name / -unit / -qty / -total / -remove
      .checkout-empty            "your cart is empty"
      .checkout-details          everything below the item list
-     .checkout-field            a <label> wrapping a <span> + input/select
-       [data-state-field]         province/state field, hidden for countries without one
+     .checkout-field            a <label> wrapping a <span> + input (email, phone)
+     .checkout-address-element  Stripe's address form (style via APPEARANCE in checkout.js)
      .checkout-hint             "choose a country..." text
      .checkout-shipping-options / .checkout-shipping-option
        .checkout-shipping-label / -amount  (input[type=radio] inside)
@@ -249,8 +249,15 @@ body:has(.checkout[open]) {
 }
 
 .checkout-field,
-.checkout-hint {
+.checkout-hint,
+.checkout-address-element {
     margin-left: var(--checkout-indent);
+}
+
+/* Stripe's address form: same width and bottom spacing as the fields. */
+.checkout-address-element {
+    max-width: 28rem;
+    margin-bottom: 12px;
 }
 
 /* One field per line, label above its input. */

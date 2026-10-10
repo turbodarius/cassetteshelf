@@ -16,15 +16,35 @@
     // While testing locally with `npm run dev`, use "http://localhost:8787".
     const API_BASE = "https://cassetteshelf-checkout.cassetteshelf.workers.dev";
 
-    // Look of Stripe's payment fields. They live in a secure iframe, so
-    // checkout.css can't reach them; this is the only way to style them.
+    // Look of Stripe's address and payment fields. They live in a secure
+    // iframe, so checkout.css can't reach them; this is the only way to
+    // style them. Set up to match the site's own fields (thin pale border,
+    // small rounded corners, 16px text, 12px between fields).
     // Reference: https://docs.stripe.com/elements/appearance-api
     const APPEARANCE = {
         theme: "stripe",
         variables: {
             colorPrimary: "#000000",
-            borderRadius: "10px",
+            colorText: "#000000",
+            borderRadius: "6px",
             fontFamily: '"vag", sans-serif',
+            fontSizeBase: "16px",
+            gridRowSpacing: "12px",
+        },
+        rules: {
+            ".Input": {
+                border: "1px solid #b3b3b3",
+                boxShadow: "none",
+                padding: "7px 8px",
+            },
+            ".Input:focus": {
+                border: "1px solid #000000",
+                boxShadow: "none",
+            },
+            ".Label": {
+                fontSize: "16px",
+                marginBottom: "4px",
+            },
         },
     };
 
@@ -51,40 +71,6 @@
     const MAX_QUANTITY = 20;  // keep in sync with worker/src/pricing.js
     const CART_KEY = "cassetteshelf-cart";
 
-    // Province / state lists. The worker's shipping.js decides which
-    // countries are offered; a country without an entry here simply gets
-    // no province/state field.
-    const REGIONS = {
-        CA: {
-            stateLabel: "province",
-            postalLabel: "postal code",
-            options: {
-                AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick",
-                NL: "Newfoundland and Labrador", NS: "Nova Scotia", NT: "Northwest Territories",
-                NU: "Nunavut", ON: "Ontario", PE: "Prince Edward Island", QC: "Québec",
-                SK: "Saskatchewan", YT: "Yukon",
-            },
-        },
-        US: {
-            stateLabel: "state",
-            postalLabel: "zip code",
-            options: {
-                AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
-                CO: "Colorado", CT: "Connecticut", DE: "Delaware", DC: "District of Columbia",
-                FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois",
-                IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana",
-                ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan",
-                MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
-                NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey",
-                NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota",
-                OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania",
-                RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota",
-                TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia",
-                WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
-            },
-        },
-    };
-
     // ---- State ------------------------------------------------------------
 
     let cart = loadCart();      // [{ format, size, quantity }]
@@ -93,9 +79,12 @@
     let quotedKey = "";         // request body of the latest quote
     let quoteSeq = 0;           // ignores out-of-order quote responses
     let quoteTimer = null;
+    let quoteDueAt = 0;         // when the scheduled quote will run
     let quotePending = false;   // a price change hasn't been quoted yet
     let stripe = null;
     let elements = null;
+    let addressElement = null;
+    let shippingDetails = { name: "", address: {} };  // from the address form
     let busy = false;
 
     let dialog, form, els;
@@ -173,8 +162,7 @@
                     document.querySelectorAll("[data-tax-only]").forEach((el) => {
                         el.hidden = !config.taxEnabled;
                     });
-                    renderCountries();
-                    mountPayment();
+                    mountStripeElements();
                 })
                 .catch((err) => {
                     setupPromise = null; // allow a retry on next open
@@ -198,7 +186,7 @@
         });
     }
 
-    function mountPayment() {
+    function mountStripeElements() {
         stripe = Stripe(config.publishableKey);
         // "Deferred" mode: the payment form is shown before the
         // PaymentIntent exists; the worker creates it when the customer
@@ -211,15 +199,33 @@
             fonts: STRIPE_FONTS,
         });
         elements.create("payment").mount("#checkoutPaymentElement");
+
+        // Address form with autocomplete (suggestions as you type), limited
+        // to the countries the worker ships to (shipping.js).
+        addressElement = elements.create("address", {
+            mode: "shipping",
+            allowedCountries: config.countries.map((c) => c.code),
+            autocomplete: { mode: "automatic" },
+        });
+        addressElement.mount("#checkoutAddressElement");
+        addressElement.on("change", (event) => {
+            const previousCountry = shippingDetails.address.country;
+            shippingDetails = {
+                name: event.value.name || "",
+                address: { ...event.value.address },
+            };
+            // A new country changes shipping options right away; other
+            // edits wait for a pause in typing.
+            scheduleQuote(shippingDetails.address.country !== previousCountry ? 0 : 600);
+        });
     }
 
     // ---- Quotes (prices from the worker) ----------------------------------
 
-    function addressFromForm() {
-        const data = new FormData(form);
+    function currentAddress() {
         const address = {};
         for (const field of ["line1", "line2", "city", "state", "postal_code", "country"]) {
-            address[field] = (data.get(field) || "").trim();
+            address[field] = (shippingDetails.address[field] || "").trim();
         }
         return address;
     }
@@ -232,7 +238,7 @@
     function orderRequest() {
         return {
             items: cart.map(({ format, size, quantity }) => ({ format, size, quantity })),
-            address: addressFromForm(),
+            address: currentAddress(),
             shippingRateId: selectedShippingRate(),
         };
     }
@@ -240,14 +246,21 @@
     // Quotes are requested when something affecting the price changes.
     // The worker only asks Stripe Tax once the address is complete.
     function scheduleQuote(delay) {
-        clearTimeout(quoteTimer);
         quotePending = true;
         setLoading(true);
         renderPendingTotals();
+        // Never push back a quote that's already due sooner (e.g. a country
+        // change followed by more updates from the address form). It reads
+        // the latest details when it runs, so nothing is missed.
+        const dueAt = Date.now() + delay;
+        if (quoteTimer && quoteDueAt <= dueAt) return;
+        clearTimeout(quoteTimer);
+        quoteDueAt = dueAt;
         quoteTimer = setTimeout(requestQuote, delay);
     }
 
     async function requestQuote() {
+        quoteTimer = null;
         const request = orderRequest();
         const key = JSON.stringify(request);
         if (!config || cart.length === 0 || key === quotedKey) {
@@ -305,25 +318,25 @@
     async function pay(event) {
         event.preventDefault();
         if (busy || cart.length === 0 || quotePending) return;
-        if (!form.reportValidity()) return;
-        if (!stripe || !quote || !quote.total) {
-            showMessage((quote && quote.taxError) || "please complete your shipping address.");
-            return;
-        }
+        if (!form.reportValidity() || !stripe) return;
 
         setBusy(true);
         hideMessage();
         try {
-            // Validates the payment fields before anything is charged.
+            // Validates the address and payment fields (Stripe shows any
+            // problems next to the field) before anything is charged.
             const { error: fieldsError } = await elements.submit();
             if (fieldsError) throw fieldsError;
+            if (!quote || !quote.total) {
+                throw new Error((quote && quote.taxError) || "please complete your shipping address.");
+            }
 
             const data = new FormData(form);
             const request = orderRequest();
             const shownTotal = quote.total;
             const result = await api("POST", "/checkout", {
                 ...request,
-                name: data.get("name"),
+                name: shippingDetails.name,
                 email: data.get("email"),
                 phone: data.get("phone"),
             });
@@ -361,7 +374,7 @@
             quote = null;
             quotedKey = "";
             form.reset();
-            renderRegions();
+            if (addressElement) addressElement.clear();
             els.successEmail.textContent = email || paymentIntent.receipt_email || "your email";
             showView("success");
         } else {
@@ -423,40 +436,6 @@
         els.empty.hidden = !empty;
         els.details.hidden = empty;
         renderQuote();
-    }
-
-    function renderCountries() {
-        const select = form.elements.country;
-        for (const { code, name } of config.countries) {
-            select.add(new Option(name, code));
-        }
-        // Pre-select when there's only one choice.
-        if (config.countries.length === 1) {
-            select.value = config.countries[0].code;
-            renderRegions();
-        }
-    }
-
-    function renderRegions() {
-        const country = form.elements.country.value;
-        const region = REGIONS[country];
-        const select = form.elements.state;
-        const previous = select.value;
-
-        // Only shown (and required) for countries with a list.
-        const showField = !country || Boolean(region);
-        els.stateField.hidden = !showField;
-        select.required = showField;
-
-        select.replaceChildren(new Option(region ? "choose a " + region.stateLabel : "choose a country first", ""));
-        if (region) {
-            for (const [code, name] of Object.entries(region.options)) {
-                select.add(new Option(name, code));
-            }
-            select.value = region.options[previous] ? previous : "";
-        }
-        els.stateLabel.textContent = region ? region.stateLabel : "province / state";
-        els.postalLabel.textContent = region ? region.postalLabel : (country ? "postal code" : "postal / zip code");
     }
 
     function renderShippingOptions() {
@@ -594,9 +573,6 @@
             payTotal: document.querySelector("[data-pay-total]"),
             success: document.getElementById("checkoutSuccess"),
             successEmail: document.querySelector("[data-success-email]"),
-            stateField: document.querySelector("[data-state-field]"),
-            stateLabel: document.querySelector("[data-state-label]"),
-            postalLabel: document.querySelector("[data-postal-label]"),
             itemTemplate: document.getElementById("checkoutItemTemplate"),
             shippingTemplate: document.getElementById("checkoutShippingTemplate"),
             feeTemplate: document.getElementById("checkoutFeeTemplate"),
@@ -611,14 +587,6 @@
         });
 
         form.addEventListener("submit", pay);
-        form.elements.country.addEventListener("change", () => {
-            renderRegions();
-            scheduleQuote(0);
-        });
-        // Address fields re-quote when the customer leaves a field.
-        for (const name of ["line1", "line2", "city", "state", "postal_code"]) {
-            form.elements[name].addEventListener("change", () => scheduleQuote(300));
-        }
         els.shippingOptions.addEventListener("change", () => scheduleQuote(0));
 
         renderCartButton();
