@@ -528,6 +528,25 @@ label.pill {
     max-width: 100%;
 }
 
+.ship-form .checkbox {
+    margin: 0 4px;
+}
+
+.ship-form .checkbox input {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+.checkbox.is-disabled {
+    color: #999;
+    cursor: default;
+}
+
+.email-heading {
+    margin-top: 24px;
+}
+
 /* ---- Analytics ---- */
 
 .analytics-bar {

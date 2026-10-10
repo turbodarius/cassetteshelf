@@ -9,14 +9,14 @@ secret key and can't change what a customer is charged.
 | File | What it's for |
 |---|---|
 | `src/analytics.js` | Records anonymous visits / checkout steps and builds the Analytics tab's report. |
-| `src/email.js` | The "new order" email to the shop, sent through Resend. |
+| `src/email.js` | The "new order" email to the shop and the "order shipped" email to customers, sent through Resend. |
 | `src/legacy.js` | Stores orders imported from a Shopify CSV export (in KV, never in the repo). |
 | `src/orders.js` | Reads paid orders from Stripe for the dashboard's Orders tab. |
 | `src/settings.js` | Loads, checks and saves the store settings edited in the `/admin` dashboard. |
 | `src/shipping.js` | Starting countries, shipping rates and fees (until the dashboard's first save). |
 | `src/catalog.js` | Product formats and starting prices (cents). Must match `prices.js` / `pricesCD.js`. |
 | `src/pricing.js` | Cart validation and price math (no Stripe calls). |
-| `src/index.js` | The routes: `/config`, `/quote`, `/checkout`, `/webhook`, `/admin/settings`. |
+| `src/index.js` | The routes: `/config`, `/quote`, `/checkout`, `/webhook`, `/track` and the `/admin/...` dashboard API. |
 | `test/` | `npm test`, runs without a Stripe account. |
 
 ## One-time setup
@@ -83,13 +83,32 @@ the webhook must be set up. Emails go through [Resend](https://resend.com)
    npx wrangler secret put RESEND_API_KEY
    npm run deploy
    ```
-4. In the dashboard, **Settings** → **Order emails** → **Send a test email**.
+4. In the dashboard, **Settings** → **Emails** → **Send a test email**.
 
-To send from your own address (e.g. `orders@cassetteshelf.com`, also needed
-later for emails to customers), add the domain in Resend → **Domains**, add
-the DNS records it shows where cassetteshelf.com's DNS is managed, then change
-`ORDER_EMAIL_FROM` in `wrangler.toml` and redeploy. If an email fails, the
-order is unaffected; `npx wrangler tail` shows the error.
+To send from your own address (e.g. `orders@cassetteshelf.com`), verify the
+domain (below), then change `ORDER_EMAIL_FROM` in `wrangler.toml` and
+redeploy. If an email fails, the order is unaffected; `npx wrangler tail`
+shows the error.
+
+## Shipping emails to customers
+
+When you mark an order as shipped in the dashboard, **Email the customer**
+(ticked by default) sends them "Your cassetteshelf order is on its way" with
+the carrier, tracking number and a tracking link, what they bought and the
+shipping address. It's sent from `CUSTOMER_EMAIL_FROM` in `wrangler.toml`
+(`orders@cassetteshelf.com`); replies go to `ORDER_EMAIL_TO`. The order then
+shows "customer emailed" with the date (also saved on the payment in Stripe
+as `shipping_email_sent_at`). If the email fails, the order is still marked
+shipped and **Send shipping email** on the order tries again.
+
+Resend only sends to customers from a domain you've verified, once:
+
+1. In Resend: **Domains** → **Add domain** → `cassetteshelf.com`.
+2. Add the DNS records it lists (a few TXT/MX records) wherever cassetteshelf.com's
+   DNS is managed (your domain registrar, or Cloudflare if the domain uses it).
+3. Wait until Resend shows the domain as **Verified** (minutes to a few hours).
+4. In the dashboard, **Settings** → **Emails** → **Send a test shipping email**
+   (it goes to `ORDER_EMAIL_TO`, not a customer).
 
 ## Going live
 
@@ -145,7 +164,8 @@ were being counted.
 
 **Mark as shipped** (on each order) records the date, carrier and an optional
 tracking number on the payment in Stripe (metadata `shipped_at`, `carrier`,
-`tracking_number`), so it also shows in Stripe's dashboard. Orders still to
+`tracking_number`), so it also shows in Stripe's dashboard, and can email the
+customer (see [Shipping emails to customers](#shipping-emails-to-customers)). Orders still to
 ship are labelled and counted, and **Only show orders to ship** filters the
 list. **Undo** clears it. Carriers and their tracking pages are listed in
 `CARRIERS` in `src/orders.js`.

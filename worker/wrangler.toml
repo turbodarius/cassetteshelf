@@ -13,6 +13,9 @@ ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http:
 # domain is verified in Resend.
 ORDER_EMAIL_TO = "contact@cassetteshelf.com"
 ORDER_EMAIL_FROM = "cassetteshelf orders <onboarding@resend.dev>"
+# Sender of the "your order has shipped" emails to customers. Resend only
+# sends these once cassetteshelf.com is verified in Resend → Domains.
+CUSTOMER_EMAIL_FROM = "cassetteshelf <orders@cassetteshelf.com>"
 # Linked from the emails.
 DASHBOARD_URL = "https://cassetteshelf.com/admin/"
 # "true" adds sales tax with Stripe Tax (see README). Anything else: no tax,

@@ -12,7 +12,7 @@
     let token = null;
     let draft = null;        // the settings being edited (see fromSettings)
     let updatedAt = null;    // version the draft started from
-    let meta = null;         // { sizes, formats, storageReady }
+    let meta = null;         // { sizes, formats, storageReady, orderEmail, customerEmail }
     let dirty = false;
 
     const $ = (id) => document.getElementById(id);
@@ -80,7 +80,8 @@
     // ---- Settings <-> editable draft -------------------------------------
 
     function load(data) {
-        meta = { sizes: data.sizes, formats: data.formats, storageReady: data.storageReady, orderEmail: data.orderEmail };
+        meta = { sizes: data.sizes, formats: data.formats, storageReady: data.storageReady, orderEmail: data.orderEmail,
+            customerEmail: data.customerEmail };
         updatedAt = data.updatedAt;
         draft = fromSettings(data.settings);
         setDirty(false);
@@ -397,13 +398,21 @@
             ? "An email with the order details goes to " + info.to + " every time a payment succeeds. Replying to it writes to the customer."
             : "Not set up yet: add your Resend key to the worker (see worker/README.md), then emails go to " + (info.to || "ORDER_EMAIL_TO") + " for every paid order.";
         $("testEmailButton").disabled = !info.ready;
+
+        const customer = meta.customerEmail || { from: "", ready: false };
+        $("shippingEmailStatus").textContent = customer.ready
+            ? "When you mark an order as shipped, the customer can get an email with the carrier and tracking link, from " +
+              customer.from + ". Replies come to you. Resend only delivers it once cassetteshelf.com is verified in Resend → Domains."
+            : "Not set up yet: needs the Resend key and CUSTOMER_EMAIL_FROM in the worker (see worker/README.md).";
+        $("testShippingEmailButton").disabled = !customer.ready;
     }
 
-    async function sendTestEmail() {
-        const button = $("testEmailButton");
+    async function sendTestEmail(event) {
+        const button = event.currentTarget;
+        const path = button.id === "testShippingEmailButton" ? "/admin/test-shipping-email" : "/admin/test-email";
         button.disabled = true;
         try {
-            const data = await api("POST", null, "/admin/test-email");
+            const data = await api("POST", null, path);
             showMessage("Test email sent to " + data.sentTo + ". It can take a minute to arrive (check spam the first time).", false);
         } catch (err) {
             if (err.status === 401) return logOut("Your session ended, please log in again.");
@@ -487,20 +496,38 @@
               " · " + waiting + " to ship · " + cad(kept) + " after refunds. New orders can take about a minute to appear.";
     }
 
-    // Marks an order shipped (shipment = { carrier, tracking }) or not (null).
+    // Marks an order shipped (shipment = { carrier, tracking, notify }) or
+    // not (null). With notify, the customer is also emailed.
     async function updateShipment(order, shipment, button) {
+        const path = "/admin/orders/" + encodeURIComponent(order.id) + "/shipment";
+        await orderRequest(button, shipment ? "PUT" : "DELETE", shipment, path);
+    }
+
+    // (Re)sends the shipping email of a shipped order.
+    async function sendShippingEmail(order, button) {
+        const path = "/admin/orders/" + encodeURIComponent(order.id) + "/shipping-email";
+        await orderRequest(button, "POST", null, path);
+    }
+
+    // -> { order, email: null | { sent, to } | { sent: false, error } }
+    async function orderRequest(button, method, body, path) {
         button.disabled = true;
         try {
-            const path = "/admin/orders/" + encodeURIComponent(order.id) + "/shipment";
-            const updated = await api(shipment ? "PUT" : "DELETE", shipment, path);
+            const { order: updated, email } = await api(method, body, path);
             orders = orders.map((o) => (o.id === updated.id ? updated : o));
-            hideMessage();
             renderOrders();
+            if (!email) hideMessage();
+            else if (email.sent) showMessage("Shipping email sent to " + email.to + ".", false);
+            else showMessage("The order is marked as shipped, but the email to the customer wasn't sent: " + email.error, true);
         } catch (err) {
             if (err.status === 401) return logOut("Your session ended, please log in again.");
             button.disabled = false;
             showMessage("Couldn't update the order: " + err.message, true);
         }
+    }
+
+    function canEmailCustomer(order) {
+        return Boolean(meta && meta.customerEmail && meta.customerEmail.ready && order.customer.email);
     }
 
     function shippingLine(order) {
@@ -521,7 +548,20 @@
                     ? el("a", { href: s.trackingUrl, target: "_blank", rel: "noopener", textContent: s.tracking + " ↗" })
                     : el("span", { textContent: s.tracking }));
             }
+            info.append(document.createTextNode(s.emailedAt
+                ? " · customer emailed " + new Date(s.emailedAt).toLocaleDateString()
+                : " · customer not emailed"));
             line.append(info);
+            if (canEmailCustomer(order)) {
+                const send = el("button", { type: "button", className: "pill pill-small",
+                    textContent: s.emailedAt ? "Email again" : "Send shipping email" });
+                send.addEventListener("click", () => {
+                    if (!s.emailedAt || confirm("Send the shipping email to " + order.customer.email + " again?")) {
+                        sendShippingEmail(order, send);
+                    }
+                });
+                line.append(send);
+            }
             const undo = el("button", { type: "button", className: "pill pill-small", textContent: "Undo" });
             undo.addEventListener("click", () => {
                 if (confirm("Mark this order as not shipped?")) updateShipment(order, null, undo);
@@ -535,12 +575,20 @@
             const carrier = el("select", { ariaLabel: "carrier" },
                 ...Object.entries(carriers).map(([id, name]) => el("option", { value: id, textContent: name })));
             const tracking = el("input", { placeholder: "Tracking number (optional)", autocomplete: "off", ariaLabel: "tracking number" });
+            const canEmail = canEmailCustomer(order);
+            const notify = el("input", { type: "checkbox", checked: canEmail, disabled: !canEmail });
+            const notifyLabel = el("label", {
+                className: "checkbox" + (canEmail ? "" : " is-disabled"),
+                title: canEmail ? "Sends the carrier and tracking link to " + order.customer.email
+                    : !order.customer.email ? "This order has no email address"
+                    : "Customer emails aren't set up (see Settings → Emails)",
+            }, notify, el("span", { textContent: "Email the customer" }));
             const confirmButton = el("button", { type: "button", className: "pill pill-black pill-small", textContent: "Confirm shipped" });
             const cancel = el("button", { type: "button", className: "pill pill-small", textContent: "Cancel" });
-            confirmButton.addEventListener("click", () =>
-                updateShipment(order, { carrier: carrier.value, tracking: tracking.value }, confirmButton));
+            confirmButton.addEventListener("click", () => updateShipment(order,
+                { carrier: carrier.value, tracking: tracking.value, notify: notify.checked }, confirmButton));
             cancel.addEventListener("click", () => line.replaceWith(shippingLine(order)));
-            line.replaceChildren(el("div", { className: "ship-form" }, carrier, tracking, confirmButton, cancel));
+            line.replaceChildren(el("div", { className: "ship-form" }, carrier, tracking, notifyLabel, confirmButton, cancel));
             tracking.focus();
         });
         line.append(start);
@@ -1161,6 +1209,7 @@
     });
     $("logoutButton").addEventListener("click", () => logOut());
     $("testEmailButton").addEventListener("click", sendTestEmail);
+    $("testShippingEmailButton").addEventListener("click", sendTestEmail);
     document.querySelectorAll("#tabs .tab").forEach((tab) => {
         tab.addEventListener("click", () => showTab(tab.dataset.tab));
     });

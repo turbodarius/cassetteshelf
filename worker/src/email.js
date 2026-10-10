@@ -1,5 +1,8 @@
-// "New order" emails to the shop, sent through Resend (resend.com) when
-// Stripe confirms a payment (the payment_intent.succeeded webhook).
+// Emails sent through Resend (resend.com):
+// - "New order" to the shop when Stripe confirms a payment (webhook).
+// - "Your order is on its way" to the customer when an order is marked
+//   shipped in the dashboard. Customer emails need a sender on a domain
+//   verified in Resend (CUSTOMER_EMAIL_FROM, e.g. orders@cassetteshelf.com).
 //
 // Setup (see README): RESEND_API_KEY secret; ORDER_EMAIL_TO / ORDER_EMAIL_FROM
 // / DASHBOARD_URL vars in wrangler.toml. With Resend's starter sender
@@ -15,6 +18,30 @@ export function emailConfigured(env) {
   return Boolean(env.RESEND_API_KEY && env.ORDER_EMAIL_TO);
 }
 
+export function customerEmailConfigured(env) {
+  return Boolean(env.RESEND_API_KEY && env.CUSTOMER_EMAIL_FROM);
+}
+
+// Posts one email to Resend; throws a readable error if it's refused.
+async function sendWithResend(env, email, idempotencyKey) {
+  const response = await fetch(RESEND_URL, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + env.RESEND_API_KEY,
+      "Content-Type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+    },
+    body: JSON.stringify(email),
+  });
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 300);
+    const hint = /domain/i.test(detail) && /verif/i.test(detail)
+      ? " (verify cassetteshelf.com in Resend → Domains, see worker/README.md)"
+      : "";
+    throw new Error("Resend refused the email (" + response.status + "): " + detail + hint);
+  }
+}
+
 // Sends the email for a paid PaymentIntent. Returns false (and logs) when
 // email isn't set up; throws if Resend refuses the email.
 export async function sendOrderEmail(env, paymentIntent) {
@@ -23,26 +50,87 @@ export async function sendOrderEmail(env, paymentIntent) {
     return false;
   }
   const order = toOrder(paymentIntent);
-  const message = orderEmail(order, env.DASHBOARD_URL);
-  const response = await fetch(RESEND_URL, {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + env.RESEND_API_KEY,
-      "Content-Type": "application/json",
-      // Stripe can send the same webhook twice; Resend then sends once.
-      "Idempotency-Key": "order-email-" + order.id,
-    },
-    body: JSON.stringify({
-      from: env.ORDER_EMAIL_FROM || DEFAULT_FROM,
-      to: env.ORDER_EMAIL_TO.split(",").map((a) => a.trim()).filter(Boolean),
-      ...(order.customer.email ? { reply_to: order.customer.email } : {}),
-      ...message,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error("Resend refused the email (" + response.status + "): " + (await response.text()).slice(0, 300));
-  }
+  await sendWithResend(env, {
+    from: env.ORDER_EMAIL_FROM || DEFAULT_FROM,
+    to: env.ORDER_EMAIL_TO.split(",").map((a) => a.trim()).filter(Boolean),
+    ...(order.customer.email ? { reply_to: order.customer.email } : {}),
+    ...orderEmail(order, env.DASHBOARD_URL),
+  // Stripe can send the same webhook twice; Resend then sends once.
+  }, "order-email-" + order.id);
   return true;
+}
+
+// "Your order is on its way" to the customer of a shipped order. `to`
+// overrides the recipient (the dashboard's test sends it to the shop).
+export async function sendShippingEmail(env, order, { to, idempotencyKey } = {}) {
+  if (!customerEmailConfigured(env)) {
+    throw new Error("customer emails aren't set up yet (CUSTOMER_EMAIL_FROM, see worker/README.md)");
+  }
+  const recipient = to || order.customer.email;
+  if (!recipient) throw new Error("this order has no customer email address");
+  await sendWithResend(env, {
+    from: env.CUSTOMER_EMAIL_FROM,
+    to: [recipient],
+    reply_to: (env.ORDER_EMAIL_TO || "").split(",")[0].trim() || undefined,
+    ...shippingEmail(order),
+  }, idempotencyKey);
+  return recipient;
+}
+
+// -> { subject, text, html } for the customer.
+export function shippingEmail(order) {
+  const s = order.shipment ?? {};
+  const first = (order.customer.name || "").trim().split(/\s+/)[0];
+  const items = order.items.map((i) => i.quantity + " × " + i.label);
+  const address = addressLines(order);
+  const carrier = s.carrierName && s.carrier !== "other" ? s.carrierName : "";
+  const shippedWith = carrier ? " with " + carrier : "";
+
+  const subject = "Your cassetteshelf order is on its way";
+  const text = [
+    (first ? "Hi " + first + "," : "Hi,"),
+    "",
+    "Good news: your order has shipped" + shippedWith + ".",
+    ...(s.tracking ? ["", "Tracking number: " + s.tracking, ...(s.trackingUrl ? ["Track your package: " + s.trackingUrl] : [])] : []),
+    "",
+    "YOUR ORDER",
+    ...items,
+    "",
+    "SHIPPING TO",
+    ...address,
+    "",
+    "Questions about your order? Just reply to this email.",
+    "",
+    "Thank you!",
+    "cassetteshelf.com",
+  ].join("\n");
+
+  const e = escapeHtml;
+  const html = `<div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#000;line-height:1.5;max-width:520px">
+<p style="margin:0 0 12px">${e(first ? "Hi " + first + "," : "Hi,")}</p>
+<p style="margin:0 0 16px">Good news: your order has shipped${e(shippedWith)}.</p>
+${s.tracking ? `<p style="margin:0 0 16px">Tracking number: <strong>${e(s.tracking)}</strong>${s.trackingUrl
+    ? `<br><a href="${e(s.trackingUrl)}" style="display:inline-block;margin-top:10px;padding:8px 20px;border-radius:999px;background:#000;color:#fff;text-decoration:none">Track your package</a>` : ""}</p>` : ""}
+<h3 style="margin:20px 0 4px;font-size:15px">Your order</h3>
+<p style="margin:0">${items.map(e).join("<br>")}</p>
+<h3 style="margin:20px 0 4px;font-size:15px">Shipping to</h3>
+<p style="margin:0">${address.map(e).join("<br>")}</p>
+<p style="margin:24px 0 0">Questions about your order? Just reply to this email.</p>
+<p style="margin:16px 0 0">Thank you!<br><a href="https://cassetteshelf.com" style="color:#000">cassetteshelf.com</a></p>
+</div>`;
+  return { subject, text, html };
+}
+
+function addressLines(order) {
+  const a = order.address;
+  let country = a.country;
+  try {
+    country = new Intl.DisplayNames(["en"], { type: "region" }).of(a.country) || a.country;
+  } catch {
+    // keep the code
+  }
+  return [order.customer.name, a.line1, a.line2, [a.city, a.state, a.postal_code].filter(Boolean).join(" "), country]
+    .filter(Boolean);
 }
 
 // -> { subject, text, html }
