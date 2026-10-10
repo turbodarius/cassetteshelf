@@ -14,7 +14,7 @@ ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http:
 ORDER_EMAIL_TO = "contact@cassetteshelf.com"
 ORDER_EMAIL_FROM = "cassetteshelf orders <onboarding@resend.dev>"
 # Linked from the emails.
-DASHBOARD_URL = "https://new-features.cassetteshelf-preview.pages.dev/admin/"
+DASHBOARD_URL = "https://cassetteshelf.com/admin/"
 # "true" adds sales tax with Stripe Tax (see README). Anything else: no tax,
 # customers pay items + shipping.
 COLLECT_TAX = "false"

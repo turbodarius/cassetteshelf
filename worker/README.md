@@ -114,9 +114,7 @@ value before the dashboard's first save.)
 
 ## Admin dashboard (prices, countries, shipping, fees, tax)
 
-Everything below is edited at `/admin` on the site (for now
-`https://new-features.cassetteshelf-preview.pages.dev/admin/`, later
-`https://cassetteshelf.com/admin/`):
+Everything below is edited at **https://cassetteshelf.com/admin/**:
 
 - **Prices** for every size of cassette and CD shelf. Leave a size empty to
   make it unavailable (the site shows "contact us").
