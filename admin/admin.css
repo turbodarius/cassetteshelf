@@ -347,3 +347,131 @@ input.is-invalid {
 .add-country .pill {
     margin-bottom: 12px;
 }
+
+/* ---- Tabs ---- */
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-right: auto;
+    margin-left: clamp(0px, 3vw, 32px);
+}
+
+.tab {
+    padding: 6px 20px;
+    border: 1.5px solid black;
+    border-radius: 999px;
+    background: white;
+    cursor: pointer;
+}
+
+.tab.is-active {
+    background: black;
+    color: white;
+}
+
+.pill-small {
+    padding: 2px 12px;
+    font-size: 0.9rem;
+}
+
+/* ---- Orders ---- */
+
+.orders-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.orders-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.order {
+    margin-bottom: 12px;
+    padding: 16px;
+    border: 1px solid var(--pale);
+    border-radius: 16px;
+}
+
+.order-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 16px;
+}
+
+.order-total {
+    font-size: 1.25rem;
+}
+
+.badge {
+    padding: 1px 10px;
+    border: 1.5px solid black;
+    border-radius: 999px;
+    font-size: 0.9rem;
+}
+
+.badge-refunded,
+.badge-partially-refunded {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.order-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 16px 24px;
+    margin-top: 8px;
+}
+
+.order-block h4 {
+    margin: 8px 0 4px;
+    color: #555;
+    font-weight: normal;
+}
+
+.order-block p {
+    margin: 0 0 4px;
+}
+
+.order-block a {
+    color: inherit;
+}
+
+.order-address {
+    white-space: pre-line;
+    line-height: 1.35;
+}
+
+.order-items {
+    margin: 0 0 8px;
+    padding-left: 1.2em;
+}
+
+.order-charges {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    gap: 2px 16px;
+    margin: 0;
+}
+
+.order-charges dd {
+    margin: 0;
+    text-align: right;
+}
+
+.order-foot {
+    margin: 12px 0 0;
+    color: #555;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.order-foot a {
+    color: inherit;
+}

@@ -19,10 +19,10 @@
 
     // ---- Talking to the worker ------------------------------------------
 
-    async function api(method, body) {
+    async function api(method, body, path = "/admin/settings") {
         let response;
         try {
-            response = await fetch(API_BASE + "/admin/settings", {
+            response = await fetch(API_BASE + path, {
                 method,
                 headers: {
                     Authorization: "Bearer " + token,
@@ -50,6 +50,7 @@
         $("loginView").hidden = true;
         $("editorView").hidden = false;
         $("actions").hidden = false;
+        $("tabs").hidden = false;
     }
 
     function logOut(message) {
@@ -59,6 +60,11 @@
         try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
         $("editorView").hidden = true;
         $("actions").hidden = true;
+        $("tabs").hidden = true;
+        orders = [];
+        nextOrdersPage = null;
+        ordersLoaded = false;
+        showTab("settings");
         $("loginView").hidden = false;
         $("password").value = "";
         showLoginError(message || "");
@@ -380,6 +386,175 @@
         }
     }
 
+    // ---- Tabs -----------------------------------------------------------------
+
+    function showTab(name) {
+        document.querySelectorAll("#tabs .tab").forEach((tab) => {
+            tab.classList.toggle("is-active", tab.dataset.tab === name);
+        });
+        $("settingsTab").hidden = name !== "settings";
+        $("ordersTab").hidden = name !== "orders";
+        document.querySelectorAll("[data-settings-only]").forEach((node) => {
+            node.hidden = name !== "settings";
+        });
+        hideMessage();
+        if (name === "orders" && !ordersLoaded) loadOrders(false);
+    }
+
+    // ---- Orders -----------------------------------------------------------
+
+    let orders = [];
+    let nextOrdersPage = null;
+    let ordersLoaded = false;
+
+    // more = false starts over from the newest; true appends the next page.
+    async function loadOrders(more) {
+        const button = more ? $("loadMoreOrders") : $("refreshOrders");
+        button.disabled = true;
+        if (!more) $("ordersSummary").textContent = "Loading orders…";
+        try {
+            const page = more && nextOrdersPage ? "?page=" + encodeURIComponent(nextOrdersPage) : "";
+            const data = await api("GET", null, "/admin/orders" + page);
+            orders = more ? orders.concat(data.orders) : data.orders;
+            nextOrdersPage = data.nextPage;
+            ordersLoaded = true;
+            hideMessage();
+            renderOrders();
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            $("ordersSummary").textContent = "";
+            showMessage("Couldn't load orders: " + err.message, true);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function renderOrders() {
+        const list = $("ordersList");
+        list.replaceChildren(...orders.map(orderCard));
+        $("loadMoreOrders").hidden = !nextOrdersPage;
+        $("downloadCsv").disabled = orders.length === 0;
+
+        const kept = orders.reduce((sum, o) => sum + o.total - o.refunded, 0);
+        $("ordersSummary").textContent = orders.length === 0
+            ? "No orders yet. New orders can take about a minute to appear."
+            : orders.length + (nextOrdersPage ? " most recent" : "") + " order" + (orders.length === 1 ? "" : "s") +
+              " · " + cad(kept) + " after refunds. New orders can take about a minute to appear.";
+    }
+
+    function orderCard(order) {
+        const card = el("article", { className: "order" });
+
+        card.append(el("div", { className: "order-head" },
+            el("span", { className: "order-date", textContent: new Date(order.created).toLocaleString() }),
+            el("strong", { className: "order-total", textContent: cad(order.total) }),
+            el("span", { className: "badge badge-" + order.status.replace(" ", "-"), textContent:
+                order.status === "partially refunded" ? "partially refunded (" + cad(order.refunded) + ")" : order.status }),
+        ));
+
+        const customer = el("div", { className: "order-block" }, el("h4", { textContent: "Customer" }));
+        customer.append(el("p", { textContent: order.customer.name || "—" }));
+        if (order.customer.email) {
+            customer.append(el("p", {}, el("a", { href: "mailto:" + order.customer.email, textContent: order.customer.email })));
+        }
+        if (order.customer.phone) customer.append(el("p", { textContent: order.customer.phone }));
+
+        const lines = addressLines(order);
+        const copy = el("button", { type: "button", className: "pill pill-small", textContent: "Copy address" });
+        copy.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(lines.join("\n"));
+                copy.textContent = "Copied";
+            } catch (e) {
+                copy.textContent = "Copy failed";
+            }
+            setTimeout(() => (copy.textContent = "Copy address"), 1500);
+        });
+        const shipTo = el("div", { className: "order-block" },
+            el("h4", { textContent: "Ship to" }),
+            el("p", { className: "order-address", textContent: lines.join("\n") }),
+            copy,
+        );
+
+        const items = el("ul", { className: "order-items" },
+            ...order.items.map((i) => el("li", { textContent: i.quantity + " × " + i.label })));
+        const charges = el("dl", { className: "order-charges" });
+        const charge = (label, cents) => charges.append(el("dt", { textContent: label }), el("dd", { textContent: cad(cents) }));
+        const itemsTotal = order.total - (order.shipping.amount || 0) - (order.tax || 0) -
+            order.fees.reduce((sum, f) => sum + f.amount, 0);
+        charge("Shelves", itemsTotal);
+        charge("Shipping (" + (order.shipping.option || "—") + ")", order.shipping.amount || 0);
+        order.fees.forEach((f) => charge(capitalizeWord(f.id), f.amount));
+        if (order.tax) charge("Tax", order.tax);
+        const bought = el("div", { className: "order-block" }, el("h4", { textContent: "Items" }), items, charges);
+
+        card.append(el("div", { className: "order-body" }, customer, shipTo, bought));
+        card.append(el("p", { className: "order-foot" },
+            document.createTextNode((order.paymentMethod || "Paid") + " · "),
+            el("a", { href: order.stripeUrl, target: "_blank", rel: "noopener", textContent: "View in Stripe ↗" }),
+            document.createTextNode(" · " + order.id),
+        ));
+        return card;
+    }
+
+    function addressLines(order) {
+        const a = order.address;
+        let country = a.country;
+        try {
+            country = new Intl.DisplayNames(["en"], { type: "region" }).of(a.country) || a.country;
+        } catch (e) { /* keep the code */ }
+        return [
+            order.customer.name,
+            a.line1,
+            a.line2,
+            [a.city, a.state, a.postal_code].filter(Boolean).join(" "),
+            country,
+        ].filter(Boolean);
+    }
+
+    // Spreadsheet of the loaded orders (Excel, Numbers, Google Sheets...).
+    function downloadCsv() {
+        const header = ["date", "order", "status", "total", "refunded", "name", "email", "phone",
+            "address line 1", "address line 2", "city", "province/state", "postal code", "country",
+            "items", "shipping option", "shipping", "fees", "tax"];
+        const rows = orders.map((o) => [
+            o.created, o.id, o.status, dollars(o.total), dollars(o.refunded),
+            o.customer.name, o.customer.email, o.customer.phone,
+            o.address.line1, o.address.line2, o.address.city, o.address.state, o.address.postal_code, o.address.country,
+            o.items.map((i) => i.quantity + " x " + i.label).join("; "),
+            o.shipping.option, dollars(o.shipping.amount || 0),
+            o.fees.map((f) => f.id + " " + dollars(f.amount)).join("; "), dollars(o.tax || 0),
+        ]);
+        const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+        const link = el("a", {
+            href: URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" })),
+            download: "cassetteshelf-orders-" + new Date().toISOString().slice(0, 10) + ".csv",
+        });
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    function csvCell(value) {
+        const text = String(value ?? "");
+        // A leading = + - @ would make spreadsheets run it as a formula.
+        const safe = /^[=+\-@]/.test(text) ? "'" + text : text;
+        return /[",\r\n]/.test(safe) ? '"' + safe.replace(/"/g, '""') + '"' : safe;
+    }
+
+    function cad(cents) {
+        return dollars(cents) + "$ CAD";
+    }
+
+    function dollars(cents) {
+        return ((cents || 0) / 100).toFixed(2);
+    }
+
+    function capitalizeWord(text) {
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
     // ---- Status and messages --------------------------------------------
 
     function setDirty(value) {
@@ -440,6 +615,12 @@
         }
     });
     $("logoutButton").addEventListener("click", () => logOut());
+    document.querySelectorAll("#tabs .tab").forEach((tab) => {
+        tab.addEventListener("click", () => showTab(tab.dataset.tab));
+    });
+    $("refreshOrders").addEventListener("click", () => loadOrders(false));
+    $("loadMoreOrders").addEventListener("click", () => loadOrders(true));
+    $("downloadCsv").addEventListener("click", downloadCsv);
     $("saveButton").addEventListener("click", save);
     $("addCountryButton").addEventListener("click", addCountry);
     $("newCountryCode").addEventListener("keydown", (event) => {

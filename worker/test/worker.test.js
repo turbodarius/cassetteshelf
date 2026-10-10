@@ -61,6 +61,11 @@ beforeEach(() => {
         amount_total: lines + shipping + tax,
       });
     }
+    if (path === "/v1/payment_intents/search") {
+      const query = new URL(url).searchParams;
+      stripeCalls[stripeCalls.length - 1].params = query;
+      return respond(query.get("page") ? SEARCH_PAGE_2 : SEARCH_PAGE_1);
+    }
     if (path === "/v1/payment_intents") {
       return respond({ id: "pi_fake", client_secret: "pi_fake_secret_x", amount: Number(params.get("amount")) });
     }
@@ -442,4 +447,78 @@ test("admin: saving without storage set up explains why", async () => {
   const res = await admin(env, { method: "PUT", body: { settings, updatedAt: null } });
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /storage isn't set up/);
+});
+
+// ---- Orders tab ----
+
+const SEARCH_PAGE_1 = {
+  object: "search_result",
+  data: [
+    {
+      id: "pi_live1", object: "payment_intent", created: 1760000000, amount: 6627, amount_received: 6627,
+      currency: "cad", livemode: true, receipt_email: "buyer@example.com",
+      shipping: { name: "Pat Buyer", phone: "+1 555 0100", address: { line1: "1 Main St", line2: "Apt 2", city: "Albany", state: "NY", postal_code: "12207", country: "US" } },
+      metadata: { items: "cassette:1x1:1", shipping_rate: "standard", shipping_amount: "2500", fees: "tariffs:1376", tax_amount: "0" },
+      latest_charge: { amount_refunded: 0, payment_method_details: { type: "card", card: { brand: "visa", last4: "4242", wallet: null } } },
+    },
+    {
+      id: "pi_live2", object: "payment_intent", created: 1759990000, amount: 20000, amount_received: 20000,
+      currency: "cad", livemode: false, receipt_email: null,
+      shipping: { name: "Sam", address: { line1: "2 rue X", city: "Montréal", state: "QC", postal_code: "H2X 1Y4", country: "CA" } },
+      metadata: { items: "cassette:2x2:2,cd:1x1:1", shipping_rate: "express", shipping_amount: "3000", tax_amount: "1500" },
+      latest_charge: { amount_refunded: 5000, billing_details: { email: "sam@example.com" }, payment_method_details: { type: "card", card: { brand: "mastercard", last4: "4444", wallet: { type: "apple_pay" } } } },
+    },
+  ],
+  has_more: true,
+  next_page: "page_token_2",
+};
+const SEARCH_PAGE_2 = { object: "search_result", data: [], has_more: false, next_page: null };
+
+test("orders: password required", async () => {
+  const res = await call("/admin/orders", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer nope" } });
+  assert.equal(res.status, 401);
+  assert.equal(stripeCalls.length, 0);
+});
+
+test("orders: paid payments from Stripe, newest first, with everything needed to ship", async () => {
+  const res = await call("/admin/orders", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } });
+  assert.equal(res.status, 200);
+  const { orders, nextPage } = await res.json();
+
+  const search = stripeCalls.find((c) => c.path === "/v1/payment_intents/search").params;
+  assert.equal(search.get("query"), 'status:"succeeded"');
+  assert.equal(search.get("expand[0]"), "data.latest_charge");
+  assert.equal(nextPage, "page_token_2");
+
+  const [us, ca] = orders;
+  assert.deepEqual(us, {
+    id: "pi_live1",
+    created: "2025-10-09T08:53:20.000Z",
+    total: 6627,
+    currency: "cad",
+    refunded: 0,
+    status: "paid",
+    customer: { name: "Pat Buyer", email: "buyer@example.com", phone: "+1 555 0100" },
+    address: { line1: "1 Main St", line2: "Apt 2", city: "Albany", state: "NY", postal_code: "12207", country: "US" },
+    items: [{ format: "cassette", size: "1x1", quantity: 1, label: "1x1 cassette shelf" }],
+    shipping: { option: "standard", amount: 2500 },
+    fees: [{ id: "tariffs", amount: 1376 }],
+    tax: 0,
+    paymentMethod: "Visa •••• 4242",
+    stripeUrl: "https://dashboard.stripe.com/payments/pi_live1",
+  });
+
+  assert.equal(ca.status, "partially refunded");
+  assert.equal(ca.refunded, 5000);
+  assert.equal(ca.customer.email, "sam@example.com");
+  assert.deepEqual(ca.items.map((i) => i.label + " x" + i.quantity), ["2x2 cassette shelf x2", "1x1 cd shelf x1"]);
+  assert.equal(ca.paymentMethod, "Mastercard •••• 4444 (Apple Pay)");
+  assert.equal(ca.stripeUrl, "https://dashboard.stripe.com/test/payments/pi_live2");
+});
+
+test("orders: next page is passed through to Stripe", async () => {
+  const res = await call("/admin/orders?page=page_token_2", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } });
+  const body = await res.json();
+  assert.equal(stripeCalls.find((c) => c.path === "/v1/payment_intents/search").params.get("page"), "page_token_2");
+  assert.deepEqual(body, { orders: [], nextPage: null });
 });

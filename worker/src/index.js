@@ -7,6 +7,7 @@
 //   POST /webhook         Stripe webhook: records the tax transaction once paid
 //   GET  /admin/settings  (admin password) current store settings
 //   PUT  /admin/settings  (admin password) saves store settings
+//   GET  /admin/orders    (admin password) paid orders from Stripe, newest first
 //
 // Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY,
 //   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password)
@@ -16,6 +17,7 @@
 import Stripe from "stripe";
 import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
 import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
+import { listOrders } from "./orders.js";
 import {
   OrderError,
   cleanAddress,
@@ -46,8 +48,8 @@ export default {
     }
 
     try {
-      if (url.pathname === "/admin/settings") {
-        return await handleAdmin(request, env, cors);
+      if (url.pathname === "/admin/settings" || url.pathname === "/admin/orders") {
+        return await handleAdmin(request, env, cors, url);
       }
 
       let body;
@@ -85,13 +87,18 @@ export default {
 
 // The dashboard's API. Every request needs the admin password
 // (ADMIN_TOKEN secret) as "Authorization: Bearer <password>".
-async function handleAdmin(request, env, cors) {
+async function handleAdmin(request, env, cors, url) {
   if (!env.ADMIN_TOKEN) {
     return json({ error: "the dashboard isn't set up yet (see worker/README.md)" }, 503, cors);
   }
   const given = (request.headers.get("authorization") ?? "").replace(/^Bearer /, "");
   if (!(await sameSecret(given, env.ADMIN_TOKEN))) {
     return json({ error: "wrong password" }, 401, cors);
+  }
+
+  if (url.pathname === "/admin/orders") {
+    if (request.method !== "GET") return json({ error: "not found" }, 404, cors);
+    return json(await listOrders(stripeClient(env), url.searchParams.get("page")), 200, cors);
   }
 
   if (request.method === "GET") {
