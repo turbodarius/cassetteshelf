@@ -8,6 +8,13 @@ compatibility_flags = ["nodejs_compat"]
 STRIPE_PUBLISHABLE_KEY = "pk_live_51UIzH9RBz4TLJ6m3ym1Atp6CtThp1CAZPioMlV5VCPxVuHwXYp1ZcyI2i6TBDFWbW4nkUzt0VAD6ZugsmxmTFQIF000r1ZIGfz"
 # Sites allowed to call this worker (comma separated, no trailing slash).
 ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http://localhost:8000,https://new-features.cassetteshelf-preview.pages.dev"
+# "New order" emails (sent through Resend, see README). Comma-separate
+# several addresses. ORDER_EMAIL_FROM stays Resend's starter sender until a
+# domain is verified in Resend.
+ORDER_EMAIL_TO = "contact@cassetteshelf.com"
+ORDER_EMAIL_FROM = "cassetteshelf orders <onboarding@resend.dev>"
+# Linked from the emails.
+DASHBOARD_URL = "https://new-features.cassetteshelf-preview.pages.dev/admin/"
 # "true" adds sales tax with Stripe Tax (see README). Anything else: no tax,
 # customers pay items + shipping.
 COLLECT_TAX = "false"
@@ -28,4 +35,5 @@ database_name = "cassetteshelf-analytics"
 #   npx wrangler secret put STRIPE_SECRET_KEY
 #   npx wrangler secret put STRIPE_WEBHOOK_SECRET
 #   npx wrangler secret put ADMIN_TOKEN        (the dashboard password)
+#   npx wrangler secret put RESEND_API_KEY     (order emails)
 # For local `wrangler dev`, put them in worker/.dev.vars instead (git-ignored).

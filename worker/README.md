@@ -9,6 +9,7 @@ secret key and can't change what a customer is charged.
 | File | What it's for |
 |---|---|
 | `src/analytics.js` | Records anonymous visits / checkout steps and builds the Analytics tab's report. |
+| `src/email.js` | The "new order" email to the shop, sent through Resend. |
 | `src/legacy.js` | Stores orders imported from a Shopify CSV export (in KV, never in the repo). |
 | `src/orders.js` | Reads paid orders from Stripe for the dashboard's Orders tab. |
 | `src/settings.js` | Loads, checks and saves the store settings edited in the `/admin` dashboard. |
@@ -62,6 +63,33 @@ npx wrangler secret put STRIPE_WEBHOOK_SECRET
 Open the site, add a shelf, and pay with test card `4242 4242 4242 4242`
 (any future date, any CVC). The payment then shows up in Dashboard → Payments,
 with the shipping address and the items (`metadata.items`, e.g. `cassette:2x2:1`).
+
+## Order emails
+
+Every paid order sends an email to `ORDER_EMAIL_TO` in `wrangler.toml`
+(`contact@cassetteshelf.com`) with the items, price breakdown, shipping
+address, customer contact and links to Stripe and the dashboard. Replying
+writes to the customer. It's sent from the Stripe webhook (setup step 3), so
+the webhook must be set up. Emails go through [Resend](https://resend.com)
+(free up to 3,000 emails a month).
+
+1. Sign up at resend.com **with contact@cassetteshelf.com**. Until you verify
+   your domain in Resend, its starter sender (`onboarding@resend.dev`) can only
+   email the address the account was created with.
+2. In Resend: **API Keys** → **Create API key** (permission: sending access) → copy it.
+3. Store it and deploy:
+   ```sh
+   cd worker
+   npx wrangler secret put RESEND_API_KEY
+   npm run deploy
+   ```
+4. In the dashboard, **Settings** → **Order emails** → **Send a test email**.
+
+To send from your own address (e.g. `orders@cassetteshelf.com`, also needed
+later for emails to customers), add the domain in Resend → **Domains**, add
+the DNS records it shows where cassetteshelf.com's DNS is managed, then change
+`ORDER_EMAIL_FROM` in `wrangler.toml` and redeploy. If an email fails, the
+order is unaffected; `npx wrangler tail` shows the error.
 
 ## Going live
 

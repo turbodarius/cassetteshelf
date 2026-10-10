@@ -11,12 +11,15 @@
 //   GET  /admin/analytics (admin password) traffic, funnel, sales, abandoned checkouts
 //   GET  /admin/orders    (admin password) paid orders from Stripe, newest first
 //   GET/PUT/DELETE /admin/legacy-orders  (admin password) orders imported from Shopify
+//   POST /admin/test-email               (admin password) sends a sample order email
 //   PUT  /admin/orders/<id>/shipment     (admin password) mark shipped
 //   DELETE /admin/orders/<id>/shipment   (admin password) undo "shipped"
 //
 // Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY,
-//   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password)
-// Vars (wrangler.toml): STRIPE_PUBLISHABLE_KEY, ALLOWED_ORIGINS, COLLECT_TAX
+//   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password),
+//   RESEND_API_KEY (order emails)
+// Vars (wrangler.toml): STRIPE_PUBLISHABLE_KEY, ALLOWED_ORIGINS, COLLECT_TAX,
+//   ORDER_EMAIL_TO, ORDER_EMAIL_FROM, DASHBOARD_URL
 // KV (wrangler.toml): SETTINGS, where the dashboard saves the settings
 // D1 (wrangler.toml): ANALYTICS, anonymous visit and checkout-step events
 
@@ -26,6 +29,7 @@ import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js"
 import { CARRIERS, listOrders, setShipment } from "./orders.js";
 import { PERIODS, analyticsReport, recordEvent } from "./analytics.js";
 import { clearLegacyOrders, importLegacyOrders, legacyToOrder, loadLegacyOrders } from "./legacy.js";
+import { emailConfigured, sampleOrderPaymentIntent, sendOrderEmail } from "./email.js";
 import {
   OrderError,
   cleanAddress,
@@ -124,6 +128,19 @@ async function handleAdmin(request, env, cors, url) {
     return json(report, 200, cors);
   }
 
+  if (url.pathname === "/admin/test-email") {
+    if (request.method !== "POST") return json({ error: "not found" }, 404, cors);
+    if (!emailConfigured(env)) {
+      return json({ error: "order emails aren't set up yet (RESEND_API_KEY, see worker/README.md)" }, 400, cors);
+    }
+    try {
+      await sendOrderEmail(env, sampleOrderPaymentIntent());
+    } catch (err) {
+      return json({ error: err.message }, 502, cors);
+    }
+    return json({ sentTo: env.ORDER_EMAIL_TO }, 200, cors);
+  }
+
   if (url.pathname === "/admin/legacy-orders") {
     if (request.method === "GET") {
       return json({ orders: (await loadLegacyOrders(env)).map(legacyToOrder) }, 200, cors);
@@ -168,6 +185,7 @@ async function handleAdmin(request, env, cors, url) {
       settings,
       updatedAt,
       storageReady: Boolean(env.SETTINGS),
+      orderEmail: { to: env.ORDER_EMAIL_TO ?? "", ready: emailConfigured(env) },
       sizes: SIZES,
       formats: Object.fromEntries(Object.entries(FORMATS).map(([id, f]) => [id, { label: f.label }])),
     }, 200, cors);
@@ -368,10 +386,15 @@ async function handleWebhook(request, env) {
       );
     }
 
-    // TODO: notify yourself of the new order here (email, Discord, etc.).
-    // Everything you need is on paymentIntent: shipping, metadata.items,
-    // amount, receipt_email.
     console.log("order paid", paymentIntent.id, paymentIntent.metadata?.items);
+
+    // "New order" email to the shop. A failure is logged, not retried:
+    // the order itself is fine and is in the dashboard either way.
+    try {
+      await sendOrderEmail(env, paymentIntent);
+    } catch (err) {
+      console.error("order email failed", paymentIntent.id, err);
+    }
   }
 
   return new Response("ok");

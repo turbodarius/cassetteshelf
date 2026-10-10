@@ -80,11 +80,12 @@
     // ---- Settings <-> editable draft -------------------------------------
 
     function load(data) {
-        meta = { sizes: data.sizes, formats: data.formats, storageReady: data.storageReady };
+        meta = { sizes: data.sizes, formats: data.formats, storageReady: data.storageReady, orderEmail: data.orderEmail };
         updatedAt = data.updatedAt;
         draft = fromSettings(data.settings);
         setDirty(false);
         render();
+        renderOrderEmail();
         if (!meta.storageReady) {
             showMessage("Settings storage isn't set up yet, so you can look around but saving won't work. See worker/README.md.", true);
         } else {
@@ -385,6 +386,30 @@
         } catch (err) {
             if (err.status === 401) return logOut("Your session ended, please log in again.");
             showMessage(err.message, true);
+        }
+    }
+
+    // ---- Order emails --------------------------------------------------------
+
+    function renderOrderEmail() {
+        const info = meta.orderEmail || { to: "", ready: false };
+        $("orderEmailStatus").textContent = info.ready
+            ? "An email with the order details goes to " + info.to + " every time a payment succeeds. Replying to it writes to the customer."
+            : "Not set up yet: add your Resend key to the worker (see worker/README.md), then emails go to " + (info.to || "ORDER_EMAIL_TO") + " for every paid order.";
+        $("testEmailButton").disabled = !info.ready;
+    }
+
+    async function sendTestEmail() {
+        const button = $("testEmailButton");
+        button.disabled = true;
+        try {
+            const data = await api("POST", null, "/admin/test-email");
+            showMessage("Test email sent to " + data.sentTo + ". It can take a minute to arrive (check spam the first time).", false);
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            showMessage("Test email failed: " + err.message, true);
+        } finally {
+            button.disabled = false;
         }
     }
 
@@ -1135,6 +1160,7 @@
         }
     });
     $("logoutButton").addEventListener("click", () => logOut());
+    $("testEmailButton").addEventListener("click", sendTestEmail);
     document.querySelectorAll("#tabs .tab").forEach((tab) => {
         tab.addEventListener("click", () => showTab(tab.dataset.tab));
     });
