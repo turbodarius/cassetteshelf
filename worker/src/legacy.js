@@ -4,6 +4,7 @@
 // "legacy-orders") behind the admin password, never in the repository.
 // The dashboard parses the CSV; this file checks and stores the result.
 
+import { FORMATS } from "./catalog.js";
 import { SettingsError } from "./settings.js";
 
 const KV_KEY = "legacy-orders";
@@ -46,7 +47,7 @@ export function legacyToOrder(o) {
     status: o.financialStatus === "partially_refunded" ? "partially refunded" : o.financialStatus.replace(/_/g, " "),
     customer: o.customer,
     address: o.address,
-    items: o.items,
+    items: o.items.map(shopifyItem),
     shipping: o.shipping,
     fees: [],
     tax: o.tax,
@@ -96,6 +97,16 @@ function cleanOrder(o) {
     paymentMethod: text(o.paymentMethod, 60),
     fulfilledAt: o.fulfilledAt ? isoDate(o.fulfilledAt) : null,
   };
+}
+
+// Shopify named variants "cassetteshelf - <columns> / <rows>"; give them the
+// same name as checkout orders ("2x2 cassette shelf") so they add up in
+// the analytics. Other names are kept as they are.
+function shopifyItem(item) {
+  const m = /^cassetteshelf\s*-\s*(\d+)\s*\/\s*(\d+)$/i.exec(item.label ?? "");
+  if (!m) return { ...item };
+  const size = m[1] + "x" + m[2];
+  return { format: "cassette", size, quantity: item.quantity, label: size + " " + FORMATS.cassette.label };
 }
 
 function text(value, max) {

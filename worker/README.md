@@ -111,7 +111,11 @@ to appear (Stripe's search is updated with a short delay).
 are stored privately in Cloudflare KV (`legacy-orders`, next to the settings),
 never in this repository, since they contain customers' personal details.
 Importing the same file again updates rather than duplicates them; **Remove
-imported orders** deletes them from the dashboard (not from Shopify).
+imported orders** deletes them from the dashboard (not from Shopify). Shopify's
+variant names ("cassetteshelf - 2 / 2", columns / rows) are shown as "2x2
+cassette shelf", and the imported orders count in the Analytics tab's sales
+on their original dates. Conversion only uses orders from days when visits
+were being counted.
 
 **Mark as shipped** (on each order) records the date, carrier and an optional
 tracking number on the payment in Stripe (metadata `shipped_at`, `carrier`,

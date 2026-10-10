@@ -9,6 +9,7 @@
 // identified. Sales and abandoned purchases come straight from Stripe.
 
 import { toOrder } from "./orders.js";
+import { legacyToOrder, loadLegacyOrders } from "./legacy.js";
 
 export const TIME_ZONE = "America/Toronto";
 
@@ -142,8 +143,14 @@ export async function analyticsReport(env, stripe, days, now = new Date()) {
 
   const [traffic, sales] = await Promise.all([
     env.ANALYTICS ? trafficReport(env.ANALYTICS, sinceDay) : null,
-    salesReport(stripe, sinceTs, sinceDay),
+    salesReport(stripe, sinceTs, sinceDay, (await loadLegacyOrders(env)).map(legacyToOrder)),
   ]);
+  // Conversion only makes sense over days when visits were counted.
+  if (traffic) {
+    sales.sales.ordersWhileTracked = traffic.firstDay
+      ? sales.orderDays.filter((day) => day >= traffic.firstDay).length
+      : 0;
+  }
   return {
     days,
     from: sinceDay,
@@ -160,6 +167,7 @@ async function trafficReport(db, sinceDay) {
   await ensureSchema(db);
   const q = (sql, ...args) => db.prepare(sql).bind(sinceDay, ...args).all().then((r) => r.results);
   const visitorsExpr = "COUNT(DISTINCT day || visitor)";
+  let firstDay = null;
   const [totals, daily, pages, referrers, countries, devices, funnel, added] = await Promise.all([
     q(`SELECT COUNT(*) AS views, ${visitorsExpr} AS visitors FROM events WHERE day >= ? AND type = 'pageview'`),
     q(`SELECT day, COUNT(*) AS views, COUNT(DISTINCT visitor) AS visitors FROM events
@@ -175,7 +183,12 @@ async function trafficReport(db, sinceDay) {
     q(`SELECT type, ${visitorsExpr} AS visitors FROM events WHERE day >= ? GROUP BY type`),
     q(`SELECT detail, COUNT(*) AS times FROM events
        WHERE day >= ? AND type = 'add_to_cart' GROUP BY detail ORDER BY times DESC LIMIT 10`),
-  ]);
+    // First day visits were counted in this period.
+    q("SELECT MIN(day) AS day FROM events WHERE day >= ?"),
+  ]).then((r) => {
+    firstDay = r.pop()[0]?.day ?? null;
+    return r;
+  });
   const byType = Object.fromEntries(funnel.map((r) => [r.type, r.visitors]));
   return {
     views: totals[0]?.views ?? 0,
@@ -187,6 +200,7 @@ async function trafficReport(db, sinceDay) {
     devices,
     funnel: EVENT_TYPES.map((type) => ({ step: type, visitors: byType[type] ?? 0 })),
     addedToCart: added,
+    firstDay,
   };
 }
 
@@ -207,14 +221,16 @@ async function searchAll(stripe, query, stopBefore) {
   return { results, truncated: true };
 }
 
-async function salesReport(stripe, sinceTs, sinceDay) {
+// `imported`: orders from before Stripe (Shopify), counted on their own dates.
+async function salesReport(stripe, sinceTs, sinceDay, imported = []) {
   const [paid, unpaid] = await Promise.all([
     searchAll(stripe, `status:"succeeded" AND created>=${sinceTs}`),
     // Can't combine OR with AND in Stripe search, so the date is checked here.
     searchAll(stripe, 'status:"requires_payment_method" OR status:"requires_action" OR status:"canceled"', sinceTs),
   ]);
 
-  const orders = paid.results.map(toOrder).filter((o) => localDay(new Date(o.created)) >= sinceDay);
+  const orders = paid.results.map(toOrder).concat(imported)
+    .filter((o) => localDay(new Date(o.created)) >= sinceDay);
   const sum = (list, f) => list.reduce((s, x) => s + f(x), 0);
   const tally = (pairs) => {
     const map = new Map();
@@ -243,6 +259,7 @@ async function salesReport(stripe, sinceTs, sinceDay) {
     shippingOptions: tally(orders.map((o) => [o.shipping.option || "?", 1])),
     fees: tally(orders.flatMap((o) => o.fees.map((f) => [f.id, f.amount]))),
     truncated: paid.truncated,
+    imported: orders.filter((o) => o.source === "shopify").length,
   };
 
   // Paid later = the same email bought after this attempt.
@@ -270,7 +287,11 @@ async function salesReport(stripe, sinceTs, sinceDay) {
   });
 
   abandoned.sort((a, b) => (a.created < b.created ? 1 : -1));  // newest first
-  return { sales, abandoned: { count: abandoned.length, value: sum(abandoned, (a) => a.amount), list: abandoned.slice(0, 50), truncated: unpaid.truncated } };
+  return {
+    sales,
+    orderDays: orders.map((o) => localDay(new Date(o.created))),
+    abandoned: { count: abandoned.length, value: sum(abandoned, (a) => a.amount), list: abandoned.slice(0, 50), truncated: unpaid.truncated },
+  };
 }
 
 function dayRange(from, to) {

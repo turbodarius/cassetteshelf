@@ -250,3 +250,45 @@ test("report: unknown period falls back to 30 days", async () => {
   const { body } = await report(baseEnv(), 12345);
   assert.equal(body.days, 30);
 });
+
+test("report: imported Shopify orders count on their own dates, named like checkout orders", async () => {
+  const env = baseEnv();
+  const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString();
+  const store = new Map([["legacy-orders", JSON.stringify([
+    { id: "shopify-1004", number: "#1004", shopifyId: "1", created: daysAgo(5), currency: "cad", total: 8483, refunded: 0, tax: 0,
+      financialStatus: "paid", customer: { name: "X", email: "x@example.com", phone: "" },
+      address: { line1: "1", line2: "", city: "C", state: "OR", postal_code: "97128", country: "US" },
+      items: [{ quantity: 1, label: "cassetteshelf - 2 / 2" }], shipping: { option: "Standard", amount: 3676 },
+      paymentMethod: "Shopify Payments", fulfilledAt: daysAgo(4) },
+    { id: "shopify-1001", number: "#1001", shopifyId: "2", created: daysAgo(200), currency: "cad", total: 5000, refunded: 0, tax: 0,
+      financialStatus: "paid", customer: { name: "Y", email: "", phone: "" }, address: { country: "PL" },
+      items: [{ quantity: 1, label: "cassetteshelf - 1 / 1" }], shipping: { option: "Standard", amount: 1000 },
+      paymentMethod: "Shopify Payments", fulfilledAt: null },
+  ])]]);
+  env.SETTINGS = { get: async (k, t) => (store.has(k) ? (t === "json" ? JSON.parse(store.get(k)) : store.get(k)) : null), put: async () => {} };
+  await track(env, { type: "pageview", path: "/" });
+
+  const { body } = await report(env, 30);
+  const s = body.sales;
+  assert.equal(s.orders, 3, "2 Stripe + the recent Shopify order; the 200-day-old one is outside 30 days");
+  assert.equal(s.imported, 1);
+  assert.equal(s.revenue, 6627 + 20000 - 5000 + 8483);
+  assert.deepEqual(s.bestSellers[0], { key: "2x2 cassette shelf", value: 3 }, "Shopify '2 / 2' adds up with checkout 2x2");
+  const shopifyDay = localDay(new Date(Date.now() - 5 * 86400000));
+  assert.equal(s.daily.find((d) => d.day === shopifyDay).revenue, 8483, "counted on its own date");
+  assert.equal(s.ordersWhileTracked, 1, "conversion only uses orders from days with visit counts (today's Stripe order)");
+
+  const year = (await report(env, 365)).body.sales;
+  assert.equal(year.imported, 2);
+  assert.ok(year.bestSellers.some((b) => b.key === "1x1 cassette shelf"));
+});
+
+test("legacy orders: Shopify variant names become checkout names in the Orders tab too", async () => {
+  const { legacyToOrder } = await import("../src/legacy.js");
+  const o = legacyToOrder({ id: "shopify-1", number: "#1", items: [{ quantity: 2, label: "cassetteshelf - 5 / 2" }, { quantity: 1, label: "Gift card" }],
+    financialStatus: "paid", customer: {}, address: {}, shipping: {}, refunded: 0 });
+  assert.deepEqual(o.items, [
+    { format: "cassette", size: "5x2", quantity: 2, label: "5x2 cassette shelf" },
+    { quantity: 1, label: "Gift card" },
+  ]);
+});

@@ -689,9 +689,12 @@
             el("h2", { textContent: "Revenue" }),
             el("p", { className: "hero", textContent: cad(s.revenue) }),
             el("p", { className: "hero-note", textContent:
-                periodText(d) + " · after " + cad(s.refunded) + " in refunds" + (s.truncated ? " · showing the latest 1,000 orders" : "") }),
+                periodText(d) + " · after " + cad(s.refunded) + " in refunds" +
+                (s.imported ? " · includes " + s.imported + " order" + (s.imported === 1 ? "" : "s") + " imported from Shopify" : "") +
+                (s.truncated ? " · showing the latest 1,000 orders" : "") }),
         );
-        const conversion = t && t.visitors ? (100 * s.orders / t.visitors) : null;
+        // Only orders from days when visits were counted (not imported history).
+        const conversion = t && t.visitors ? (100 * (s.ordersWhileTracked ?? s.orders) / t.visitors) : null;
         head.append(el("div", { className: "tiles" },
             tile("Visitors", t ? number(t.visitors) : "—", t ? null : "visit tracking not set up"),
             tile("Page views", t ? number(t.views) : "—"),
