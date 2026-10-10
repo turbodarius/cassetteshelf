@@ -9,6 +9,7 @@ secret key and can't change what a customer is charged.
 | File | What it's for |
 |---|---|
 | `src/analytics.js` | Records anonymous visits / checkout steps and builds the Analytics tab's report. |
+| `src/legacy.js` | Stores orders imported from a Shopify CSV export (in KV, never in the repo). |
 | `src/orders.js` | Reads paid orders from Stripe for the dashboard's Orders tab. |
 | `src/settings.js` | Loads, checks and saves the store settings edited in the `/admin` dashboard. |
 | `src/shipping.js` | Starting countries, shipping rates and fees (until the dashboard's first save). |
@@ -104,6 +105,13 @@ customer, shipping address (with a copy button), shelves bought, shipping,
 fees, tax, payment method and a link to the payment in Stripe. **Download CSV**
 exports the loaded orders for a spreadsheet. New orders can take about a minute
 to appear (Stripe's search is updated with a short delay).
+
+**Earlier orders (Shopify)**: import a Shopify orders export (Orders → Export →
+"All orders", CSV) with **Import Shopify CSV** in the Orders tab. The orders
+are stored privately in Cloudflare KV (`legacy-orders`, next to the settings),
+never in this repository, since they contain customers' personal details.
+Importing the same file again updates rather than duplicates them; **Remove
+imported orders** deletes them from the dashboard (not from Shopify).
 
 **Mark as shipped** (on each order) records the date, carrier and an optional
 tracking number on the payment in Stripe (metadata `shipped_at`, `carrier`,

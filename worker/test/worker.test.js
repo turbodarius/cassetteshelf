@@ -596,3 +596,69 @@ test("orders: shipped orders say so; the list includes the carrier choices", asy
     for (const k of ["shipped_at", "carrier", "tracking_number"]) delete SEARCH_PAGE_1.data[0].metadata[k];
   }
 });
+
+// ---- Imported Shopify orders ----
+
+const legacyOrder = (number, created, extra = {}) => ({
+  number, shopifyId: "6821181620421", created, currency: "CAD", total: 12563, refunded: 0, tax: 0,
+  financialStatus: "paid",
+  customer: { name: "Test Customer", email: "t@example.com", phone: "+1 555 0100" },
+  address: { line1: "1 Test St", line2: "", city: "Testville", state: "QC", postal_code: "H0H 0H0", country: "CA" },
+  items: [{ quantity: 1, label: "cassetteshelf - 2 / 2" }],
+  shipping: { option: "Standard", amount: 5107 },
+  paymentMethod: "Shopify Payments",
+  fulfilledAt: "2026-09-06T19:35:17.000Z",
+  ...extra,
+});
+const legacy = (env, method, body) => call("/admin/legacy-orders", { method, body, workerEnv: env, headers: { authorization: "Bearer " + PASSWORD } });
+
+test("legacy orders: import, list (newest first), re-import without duplicates, remove", async () => {
+  const env = adminEnv();
+  let res = await legacy(env, "PUT", { orders: [legacyOrder("#1002", "2026-09-06T14:11:26.000Z"), legacyOrder("#1003", "2026-09-15 10:13:21 -0400")] });
+  assert.equal(res.status, 200);
+  let body = await res.json();
+  assert.equal(body.imported, 2);
+  assert.deepEqual(body.orders.map((o) => o.number), ["#1003", "#1002"]);
+
+  const first = body.orders[1];
+  assert.equal(first.id, "shopify-1002");
+  assert.equal(first.source, "shopify");
+  assert.equal(first.status, "paid");
+  assert.equal(first.total, 12563);
+  assert.equal(first.shipment.at, "2026-09-06T19:35:17.000Z");
+  assert.equal(first.stripeUrl, "https://admin.shopify.com/store/cassetteshelf-com/orders/6821181620421");
+  assert.equal(body.orders[0].created, "2026-09-15T14:13:21.000Z");
+
+  res = await legacy(env, "PUT", { orders: [legacyOrder("#1002", "2026-09-06T14:11:26.000Z", { refunded: 100, financialStatus: "partially_refunded" })] });
+  body = await res.json();
+  assert.equal(body.orders.length, 2, "same order number replaces, doesn't duplicate");
+  assert.equal(body.orders[1].status, "partially refunded");
+
+  assert.equal((await (await legacy(env, "GET")).json()).orders.length, 2);
+  await legacy(env, "DELETE");
+  assert.deepEqual((await (await legacy(env, "GET")).json()).orders, []);
+});
+
+test("legacy orders: bad data is refused, password required, never in /config", async () => {
+  const env = adminEnv();
+  assert.equal((await legacy(env, "PUT", { orders: [] })).status, 400);
+  assert.equal((await legacy(env, "PUT", { orders: [legacyOrder("#1002", "not a date")] })).status, 400);
+  assert.equal((await legacy(env, "PUT", { orders: [legacyOrder("#1002", "2026-09-06T14:11:26Z", { total: -5 })] })).status, 400);
+  assert.equal((await legacy(env, "PUT", { orders: [legacyOrder("<script>", "2026-09-06T14:11:26Z")] })).status, 400);
+  const res = await call("/admin/legacy-orders", { method: "GET", workerEnv: env, headers: { authorization: "Bearer nope" } });
+  assert.equal(res.status, 401);
+  await legacy(env, "PUT", { orders: [legacyOrder("#1002", "2026-09-06T14:11:26Z")] });
+  const config = await (await call("/config", { method: "GET", workerEnv: env })).text();
+  assert.ok(!config.includes("Test Customer"));
+});
+
+test("legacy orders: odd values are cleaned (no unsafe links, short fields)", async () => {
+  const env = adminEnv();
+  const body = await (await legacy(env, "PUT", { orders: [legacyOrder("#1009", "2026-09-06T14:11:26Z", {
+    shopifyId: "javascript:alert(1)", customer: { name: "x".repeat(500), email: "e", phone: "p" }, address: { country: "CAN" },
+  })] })).json();
+  const o = body.orders[0];
+  assert.equal(o.stripeUrl, null);
+  assert.equal(o.customer.name.length, 100);
+  assert.equal(o.address.country, "CA");
+});

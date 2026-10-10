@@ -160,6 +160,10 @@ input.is-invalid {
 
 /* ---- Buttons ---- */
 
+label.pill {
+    display: inline-block;
+}
+
 .pill {
     padding: 6px 20px;
     border: 1.5px solid black;

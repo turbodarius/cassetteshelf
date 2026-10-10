@@ -107,6 +107,21 @@
                     <div id="ordersList" class="orders"></div>
                     <button type="button" id="loadMoreOrders" class="pill" hidden>Load more</button>
                 </section>
+
+                <!-- Orders from before Stripe, imported from a Shopify CSV export.
+                     Stored in Cloudflare (never in the repository). -->
+                <section class="card">
+                    <div class="orders-head">
+                        <h2>Earlier orders (Shopify)</h2>
+                        <div class="orders-actions">
+                            <label class="pill" for="shopifyCsv">Import Shopify CSV</label>
+                            <input type="file" id="shopifyCsv" accept=".csv,text/csv" hidden>
+                            <button type="button" id="removeLegacy" class="pill" hidden>Remove imported orders</button>
+                        </div>
+                    </div>
+                    <p id="legacySummary" class="hint"></p>
+                    <div id="legacyList" class="orders"></div>
+                </section>
             </div>
         </div>
     </main>

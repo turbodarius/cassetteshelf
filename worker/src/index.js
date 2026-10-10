@@ -10,6 +10,7 @@
 //   POST /track           anonymous page-view / checkout-step event (analytics)
 //   GET  /admin/analytics (admin password) traffic, funnel, sales, abandoned checkouts
 //   GET  /admin/orders    (admin password) paid orders from Stripe, newest first
+//   GET/PUT/DELETE /admin/legacy-orders  (admin password) orders imported from Shopify
 //   PUT  /admin/orders/<id>/shipment     (admin password) mark shipped
 //   DELETE /admin/orders/<id>/shipment   (admin password) undo "shipped"
 //
@@ -24,6 +25,7 @@ import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
 import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
 import { CARRIERS, listOrders, setShipment } from "./orders.js";
 import { PERIODS, analyticsReport, recordEvent } from "./analytics.js";
+import { clearLegacyOrders, importLegacyOrders, legacyToOrder, loadLegacyOrders } from "./legacy.js";
 import {
   OrderError,
   cleanAddress,
@@ -120,6 +122,22 @@ async function handleAdmin(request, env, cors, url) {
     const days = Number(url.searchParams.get("days"));
     const report = await analyticsReport(env, stripeClient(env), PERIODS.includes(days) ? days : 30);
     return json(report, 200, cors);
+  }
+
+  if (url.pathname === "/admin/legacy-orders") {
+    if (request.method === "GET") {
+      return json({ orders: (await loadLegacyOrders(env)).map(legacyToOrder) }, 200, cors);
+    }
+    if (request.method === "PUT") {
+      const body = await request.json().catch(() => null);
+      const { orders, imported } = await importLegacyOrders(env, body?.orders);
+      return json({ orders: orders.map(legacyToOrder), imported }, 200, cors);
+    }
+    if (request.method === "DELETE") {
+      await clearLegacyOrders(env);
+      return json({ orders: [] }, 200, cors);
+    }
+    return json({ error: "not found" }, 404, cors);
   }
 
   if (url.pathname === "/admin/orders") {

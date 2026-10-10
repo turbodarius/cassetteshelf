@@ -422,7 +422,10 @@
         if (!more) $("ordersSummary").textContent = "Loading orders…";
         try {
             const page = more && nextOrdersPage ? "?page=" + encodeURIComponent(nextOrdersPage) : "";
-            const data = await api("GET", null, "/admin/orders" + page);
+            const [data] = await Promise.all([
+                api("GET", null, "/admin/orders" + page),
+                more ? null : loadLegacyOrders(),
+            ]);
             orders = more ? orders.concat(data.orders) : data.orders;
             nextOrdersPage = data.nextPage;
             carriers = data.carriers || carriers;
@@ -440,15 +443,16 @@
 
     // Fully refunded orders don't need shipping.
     function toShip(order) {
-        return !order.shipment && order.status !== "refunded";
+        return order.source !== "shopify" && !order.shipment && order.status !== "refunded";
     }
 
     function renderOrders() {
         const list = $("ordersList");
         const shown = $("onlyToShip").checked ? orders.filter(toShip) : orders;
         list.replaceChildren(...shown.map(orderCard));
+        renderLegacy();
         $("loadMoreOrders").hidden = !nextOrdersPage;
-        $("downloadCsv").disabled = orders.length === 0;
+        $("downloadCsv").disabled = orders.length + legacyOrders.length === 0;
 
         const kept = orders.reduce((sum, o) => sum + o.total - o.refunded, 0);
         const waiting = orders.filter(toShip).length;
@@ -476,6 +480,12 @@
 
     function shippingLine(order) {
         const line = el("div", { className: "order-shipping" });
+        if (order.source === "shopify") {
+            line.textContent = order.shipment
+                ? "Fulfilled in Shopify on " + new Date(order.shipment.at).toLocaleDateString()
+                : "Not fulfilled in Shopify";
+            return line;
+        }
         if (order.shipment) {
             const s = order.shipment;
             const info = el("span", {}, document.createTextNode(
@@ -521,7 +531,7 @@
             el("span", { className: "badge badge-" + order.status.replace(" ", "-"), textContent:
                 order.status === "partially refunded" ? "partially refunded (" + cad(order.refunded) + ")" : order.status }),
             order.shipment
-                ? el("span", { className: "badge badge-shipped", textContent: "shipped" })
+                ? el("span", { className: "badge badge-shipped", textContent: order.source === "shopify" ? "fulfilled" : "shipped" })
                 : toShip(order) ? el("span", { className: "badge badge-to-ship", textContent: "to ship" }) : "",
         ));
 
@@ -565,8 +575,10 @@
         card.append(shippingLine(order));
         card.append(el("p", { className: "order-foot" },
             document.createTextNode((order.paymentMethod || "Paid") + " · "),
-            el("a", { href: order.stripeUrl, target: "_blank", rel: "noopener", textContent: "View in Stripe ↗" }),
-            document.createTextNode(" · " + order.id),
+            order.stripeUrl
+                ? el("a", { href: order.stripeUrl, target: "_blank", rel: "noopener", textContent: order.source === "shopify" ? "View in Shopify ↗" : "View in Stripe ↗" })
+                : "",
+            document.createTextNode(" · " + (order.number || order.id)),
         ));
         return card;
     }
@@ -591,7 +603,7 @@
         const header = ["date", "order", "status", "shipped", "carrier", "tracking", "total", "refunded", "name", "email", "phone",
             "address line 1", "address line 2", "city", "province/state", "postal code", "country",
             "items", "shipping option", "shipping", "fees", "tax"];
-        const rows = orders.map((o) => [
+        const rows = orders.concat(legacyOrders).map((o) => [
             o.created, o.id, o.status, o.shipment ? o.shipment.at : "", o.shipment ? o.shipment.carrierName : "",
             o.shipment ? o.shipment.tracking : "", dollars(o.total), dollars(o.refunded),
             o.customer.name, o.customer.email, o.customer.phone,
@@ -924,6 +936,142 @@
         return size ? size + " " + label : detail;
     }
 
+    // ---- Imported Shopify orders --------------------------------------------
+
+    let legacyOrders = [];
+
+    async function loadLegacyOrders() {
+        const data = await api("GET", null, "/admin/legacy-orders");
+        legacyOrders = data.orders;
+    }
+
+    function renderLegacy() {
+        $("legacyList").replaceChildren(...legacyOrders.map(orderCard));
+        $("removeLegacy").hidden = legacyOrders.length === 0;
+        $("legacySummary").textContent = legacyOrders.length === 0
+            ? "Orders from your Shopify store. In Shopify, go to Orders → Export, choose \"All orders\" and \"CSV for Excel, Numbers, or other spreadsheet programs\", then import that file here. They're stored privately with your settings; importing the same file again won't duplicate them."
+            : legacyOrders.length + " order" + (legacyOrders.length === 1 ? "" : "s") + " imported from Shopify · " +
+              cad(legacyOrders.reduce((sum, o) => sum + o.total - o.refunded, 0)) + " after refunds.";
+    }
+
+    async function importShopifyCsv(file) {
+        let parsed;
+        try {
+            parsed = parseShopifyOrders(await file.text());
+        } catch (err) {
+            return showMessage(err.message, true);
+        }
+        try {
+            const data = await api("PUT", { orders: parsed }, "/admin/legacy-orders");
+            legacyOrders = data.orders;
+            renderLegacy();
+            showMessage("Imported " + data.imported + " Shopify order" + (data.imported === 1 ? "" : "s") + ".", false);
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            showMessage("Couldn't import: " + err.message, true);
+        }
+    }
+
+    async function removeLegacy() {
+        if (!confirm("Remove all imported Shopify orders from the dashboard? (Your Shopify account isn't affected.)")) return;
+        try {
+            await api("DELETE", null, "/admin/legacy-orders");
+            legacyOrders = [];
+            renderLegacy();
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            showMessage(err.message, true);
+        }
+    }
+
+    // Shopify "orders export" CSV -> orders for the worker. One row per
+    // line item; the order's totals and addresses are on its first row.
+    function parseShopifyOrders(text) {
+        const rows = parseCsv(text.replace(/^\ufeff/, ""));
+        const header = rows.shift() || [];
+        const col = Object.fromEntries(header.map((name, i) => [name.trim(), i]));
+        for (const required of ["Name", "Created at", "Total", "Lineitem name"]) {
+            if (!(required in col)) throw new Error("This doesn't look like a Shopify orders export (missing \"" + required + "\").");
+        }
+        const get = (row, name) => (name in col ? (row[col[name]] || "").trim() : "");
+        // Shopify puts an apostrophe before numbers like postal codes.
+        const plain = (value) => value.replace(/^'/, "");
+        const cents = (value) => {
+            const n = parseFloat(plain(value));
+            return Number.isFinite(n) ? Math.round(n * 100) : 0;
+        };
+        // "2026-09-06 10:11:26 -0400" -> "2026-09-06T10:11:26-04:00"
+        const date = (value) => {
+            const m = value.match(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) ([+-]\d\d)(\d\d)$/);
+            return m ? m[1] + "T" + m[2] + m[3] + ":" + m[4] : value;
+        };
+
+        const orders = new Map();
+        for (const row of rows) {
+            const number = get(row, "Name");
+            if (!number) continue;
+            let order = orders.get(number);
+            if (!order) {
+                const ship = get(row, "Shipping Address1") ? "Shipping" : "Billing";
+                order = {
+                    number,
+                    shopifyId: get(row, "Id"),
+                    created: date(get(row, "Created at")),
+                    currency: get(row, "Currency") || "CAD",
+                    total: cents(get(row, "Total")),
+                    refunded: cents(get(row, "Refunded Amount")),
+                    tax: cents(get(row, "Taxes")),
+                    financialStatus: get(row, "Financial Status").toLowerCase() || "paid",
+                    customer: {
+                        name: get(row, "Shipping Name") || get(row, "Billing Name"),
+                        email: get(row, "Email"),
+                        phone: plain(get(row, "Shipping Phone") || get(row, "Phone") || get(row, "Billing Phone")),
+                    },
+                    address: {
+                        line1: get(row, ship + " Address1"),
+                        line2: get(row, ship + " Address2"),
+                        city: get(row, ship + " City"),
+                        state: get(row, ship + " Province"),
+                        postal_code: plain(get(row, ship + " Zip")),
+                        country: get(row, ship + " Country"),
+                    },
+                    items: [],
+                    shipping: { option: get(row, "Shipping Method"), amount: cents(get(row, "Shipping")) },
+                    paymentMethod: get(row, "Payment Method"),
+                    fulfilledAt: get(row, "Fulfillment Status") === "fulfilled" && get(row, "Fulfilled at") ? date(get(row, "Fulfilled at")) : null,
+                };
+                orders.set(number, order);
+            }
+            order.items.push({ quantity: parseInt(get(row, "Lineitem quantity"), 10) || 1, label: get(row, "Lineitem name") });
+        }
+        if (orders.size === 0) throw new Error("No orders found in that file.");
+        return [...orders.values()];
+    }
+
+    // Spreadsheet CSV (quoted fields, "" for quotes, line breaks in quotes).
+    function parseCsv(text) {
+        const rows = [];
+        let row = [], field = "", quoted = false;
+        for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (quoted) {
+                if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+                else if (c === '"') quoted = false;
+                else field += c;
+            } else if (c === '"') quoted = true;
+            else if (c === ",") { row.push(field); field = ""; }
+            else if (c === "\n" || c === "\r") {
+                if (c === "\r" && text[i + 1] === "\n") i++;
+                row.push(field); field = "";
+                if (row.some((f) => f !== "")) rows.push(row);
+                row = [];
+            } else field += c;
+        }
+        row.push(field);
+        if (row.some((f) => f !== "")) rows.push(row);
+        return rows;
+    }
+
     // ---- Status and messages --------------------------------------------
 
     function setDirty(value) {
@@ -991,6 +1139,12 @@
     $("loadMoreOrders").addEventListener("click", () => loadOrders(true));
     $("downloadCsv").addEventListener("click", downloadCsv);
     $("onlyToShip").addEventListener("change", renderOrders);
+    $("shopifyCsv").addEventListener("change", () => {
+        const file = $("shopifyCsv").files[0];
+        $("shopifyCsv").value = "";
+        if (file) importShopifyCsv(file);
+    });
+    $("removeLegacy").addEventListener("click", removeLegacy);
     $("refreshAnalytics").addEventListener("click", loadAnalytics);
     document.querySelectorAll(".periods [data-days]").forEach((button) => {
         button.addEventListener("click", () => {
