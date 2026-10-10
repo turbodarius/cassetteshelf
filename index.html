@@ -345,7 +345,7 @@
     <section class="panel" id="purchaseSection">
         <div id="shopsection" class="header">
             <a href="">build your own now</a>
-            <a>from 27.51 CAD</a>
+            <a id="fromPrice">from 27.51 CAD</a>
         </div>
 
         <div class="typflex">
@@ -669,6 +669,18 @@
 
                 debug.textContent = fullPath;
 
+                const perModule = isCD ? 16 : 10;
+                quantity.textContent = "contains up to " + cols.value * rows.value * perModule + " " + itemType;
+
+                updatePrice();
+            }
+
+            // Price and "add to cart" for the current configuration. Also
+            // re-run when the live prices arrive from the checkout worker
+            // (the "cassetteshelf:prices" event from checkout.js).
+            function updatePrice() {
+                const key = cols.value + "x" + rows.value;
+                const isCD = formatToggle.checked;
                 const activePrices = isCD ? (typeof pricesCD !== "undefined" ? pricesCD : {}) : prices;
                 if (activePrices[key]) {
                     priceText.textContent = activePrices[key].toFixed(2) + "$ CAD";
@@ -677,9 +689,6 @@
                     priceText.textContent = "contact us";
                     priceText.style.color = "red";
                 }
-
-                const perModule = isCD ? 16 : 10;
-                quantity.textContent = "contains up to " + cols.value * rows.value * perModule + " " + itemType;
 
                 if (activePrices[key]) {
                     addToCartBtn.style.opacity = "1";
@@ -735,6 +744,16 @@
             });
 
             updateImage();
+
+            // Live prices from the dashboard: refresh the price shown and the
+            // "from ... CAD" header (lowest cassette shelf price).
+            document.addEventListener("cassetteshelf:prices", () => {
+                updatePrice();
+                const lowest = Math.min(...Object.values(prices));
+                if (Number.isFinite(lowest)) {
+                    document.getElementById("fromPrice").textContent = "from " + lowest.toFixed(2) + " CAD";
+                }
+            });
 
             // Warm the browser cache for every configurator combo in idle
             // time (after the page has already loaded) so switching rows/

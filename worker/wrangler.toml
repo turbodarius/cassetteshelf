@@ -12,7 +12,14 @@ ALLOWED_ORIGINS = "https://cassetteshelf.com,https://www.cassetteshelf.com,http:
 # customers pay items + shipping.
 COLLECT_TAX = "false"
 
+# Where the /admin dashboard saves the store settings (prices, countries,
+# shipping, fees, tax). No id needed: `npm run deploy` creates it the first
+# time and remembers it.
+[[kv_namespaces]]
+binding = "SETTINGS"
+
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put STRIPE_SECRET_KEY
 #   npx wrangler secret put STRIPE_WEBHOOK_SECRET
+#   npx wrangler secret put ADMIN_TOKEN        (the dashboard password)
 # For local `wrangler dev`, put them in worker/.dev.vars instead (git-ignored).

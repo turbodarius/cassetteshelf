@@ -1,20 +1,26 @@
 // cassetteshelf checkout backend (Cloudflare Worker).
 //
 // Routes:
-//   GET  /config    publishable key + countries we ship to
-//   POST /quote     prices a cart: subtotal, shipping options, tax, total
-//   POST /checkout  re-prices the cart and creates a Stripe PaymentIntent
-//   POST /webhook   Stripe webhook: records the tax transaction once paid
+//   GET  /config          publishable key, countries we ship to, prices
+//   POST /quote           prices a cart: subtotal, shipping options, tax, total
+//   POST /checkout        re-prices the cart and creates a Stripe PaymentIntent
+//   POST /webhook         Stripe webhook: records the tax transaction once paid
+//   GET  /admin/settings  (admin password) current store settings
+//   PUT  /admin/settings  (admin password) saves store settings
 //
-// Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+// Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY,
+//   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password)
 // Vars (wrangler.toml): STRIPE_PUBLISHABLE_KEY, ALLOWED_ORIGINS, COLLECT_TAX
+// KV (wrangler.toml): SETTINGS, where the dashboard saves the settings
 
 import Stripe from "stripe";
-import { CURRENCY, TAX_CODE } from "./catalog.js";
+import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
+import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
 import {
   OrderError,
   cleanAddress,
   countryList,
+  displayPrices,
   feesFor,
   feesMetadata,
   hasTaxableAddress,
@@ -40,29 +46,36 @@ export default {
     }
 
     try {
+      if (url.pathname === "/admin/settings") {
+        return await handleAdmin(request, env, cors);
+      }
+
       let body;
       if (url.pathname === "/config" && request.method === "GET") {
+        const { settings } = await loadSettings(env);
         body = {
           publishableKey: env.STRIPE_PUBLISHABLE_KEY,
           currency: CURRENCY,
-          countries: countryList(),
-          taxEnabled: taxEnabled(env),
+          countries: countryList(settings),
+          prices: displayPrices(settings),
+          taxEnabled: settings.collectTax,
         };
       } else if (url.pathname === "/quote" && request.method === "POST") {
-        const quote = await buildQuote(stripeClient(env), await request.json(), {
+        const { settings } = await loadSettings(env);
+        const quote = await buildQuote(stripeClient(env), settings, await request.json(), {
           complete: false,
-          collectTax: taxEnabled(env),
         });
         body = publicQuote(quote);
       } else if (url.pathname === "/checkout" && request.method === "POST") {
-        body = await createCheckout(stripeClient(env), await request.json(), taxEnabled(env));
+        const { settings } = await loadSettings(env);
+        body = await createCheckout(stripeClient(env), settings, await request.json());
       } else {
         return json({ error: "not found" }, 404, cors);
       }
       return json(body, 200, cors);
     } catch (err) {
-      if (err instanceof OrderError) {
-        return json({ error: err.message }, 400, cors);
+      if (err instanceof OrderError || err instanceof SettingsError) {
+        return json({ error: err.message }, err.conflict ? 409 : 400, cors);
       }
       console.error(err);
       return json({ error: "something went wrong, please try again" }, 500, cors);
@@ -70,9 +83,45 @@ export default {
   },
 };
 
-// COLLECT_TAX = "true" in wrangler.toml turns on Stripe Tax.
-function taxEnabled(env) {
-  return env.COLLECT_TAX === "true";
+// The dashboard's API. Every request needs the admin password
+// (ADMIN_TOKEN secret) as "Authorization: Bearer <password>".
+async function handleAdmin(request, env, cors) {
+  if (!env.ADMIN_TOKEN) {
+    return json({ error: "the dashboard isn't set up yet (see worker/README.md)" }, 503, cors);
+  }
+  const given = (request.headers.get("authorization") ?? "").replace(/^Bearer /, "");
+  if (!(await sameSecret(given, env.ADMIN_TOKEN))) {
+    return json({ error: "wrong password" }, 401, cors);
+  }
+
+  if (request.method === "GET") {
+    const { settings, updatedAt } = await loadSettings(env);
+    return json({
+      settings,
+      updatedAt,
+      storageReady: Boolean(env.SETTINGS),
+      sizes: SIZES,
+      formats: Object.fromEntries(Object.entries(FORMATS).map(([id, f]) => [id, { label: f.label }])),
+    }, 200, cors);
+  }
+  if (request.method === "PUT") {
+    const body = await request.json().catch(() => null);
+    const saved = await saveSettings(env, body?.settings, body?.updatedAt);
+    return json(saved, 200, cors);
+  }
+  return json({ error: "not found" }, 404, cors);
+}
+
+// Compares secrets without leaking how much of them matched (hashing
+// first makes both sides the same length).
+async function sameSecret(a, b) {
+  const encoder = new TextEncoder();
+  const [x, y] = await Promise.all(
+    [a, b].map(async (s) => new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(s)))),
+  );
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
 }
 
 function stripeClient(env) {
@@ -84,8 +133,9 @@ function stripeClient(env) {
 // Prices the cart from the request. With `complete`, a missing address
 // (or one Stripe Tax can't use) is an error; otherwise the quote simply
 // has no total yet. Without `collectTax`, total = items + shipping + fees.
-async function buildQuote(stripe, body, { complete, collectTax }) {
-  const lines = priceItems(body?.items);
+async function buildQuote(stripe, settings, body, { complete }) {
+  const collectTax = settings.collectTax;
+  const lines = priceItems(settings, body?.items);
   const subtotal = lines.reduce((sum, l) => sum + l.amount, 0);
   const address = cleanAddress(body?.address);
 
@@ -107,9 +157,9 @@ async function buildQuote(stripe, body, { complete, collectTax }) {
     return quote;
   }
 
-  quote.shippingOptions = shippingOptionsFor(address.country);
-  quote.shippingRate = selectShipping(address.country, body?.shippingRateId);
-  quote.fees = feesFor(address.country, subtotal);
+  quote.shippingOptions = shippingOptionsFor(settings, address.country);
+  quote.shippingRate = selectShipping(settings, address.country, body?.shippingRateId);
+  quote.fees = feesFor(settings, address.country, subtotal);
   const feesTotal = quote.fees.reduce((sum, f) => sum + f.amount, 0);
 
   if (!collectTax) {
@@ -184,14 +234,14 @@ function publicQuote(quote) {
   };
 }
 
-async function createCheckout(stripe, body, collectTax) {
+async function createCheckout(stripe, settings, body) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const address = cleanAddress(body?.address);
   validateCheckoutDetails({ name, email, address });
 
-  const quote = await buildQuote(stripe, body, { complete: true, collectTax });
+  const quote = await buildQuote(stripe, settings, body, { complete: true });
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: quote.total,
@@ -263,8 +313,8 @@ function corsHeaders(request, env) {
   const allowed = (env.ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim());
   const origin = request.headers.get("origin");
   const headers = {
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Vary": "Origin",
   };
   if (origin && allowed.includes(origin)) {

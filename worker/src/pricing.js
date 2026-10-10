@@ -1,9 +1,9 @@
 // Pure order logic (no Stripe calls) so it can be unit tested.
-// Everything the browser sends is treated as untrusted: prices always
-// come from catalog.js and shipping.js, never from the request.
+// Everything the browser sends is treated as untrusted: prices, shipping
+// and fees always come from the store settings (settings.js), never from
+// the request.
 
 import { FORMATS } from "./catalog.js";
-import { SHIPPING_RATES } from "./shipping.js";
 
 export const MAX_LINES = 20;
 export const MAX_QUANTITY = 20;
@@ -11,7 +11,7 @@ export const MAX_QUANTITY = 20;
 export class OrderError extends Error {}
 
 // [{ format, size, quantity }] -> priced line items.
-export function priceItems(items) {
+export function priceItems(settings, items) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new OrderError("your cart is empty");
   }
@@ -21,7 +21,7 @@ export function priceItems(items) {
 
   return items.map((item) => {
     const format = ownValue(FORMATS, item?.format);
-    const unitAmount = format && ownValue(format.prices, item?.size);
+    const unitAmount = format && ownValue(settings.prices[item.format] ?? {}, item?.size);
     const quantity = Number(item?.quantity);
 
     if (!Number.isInteger(unitAmount)) {
@@ -43,8 +43,8 @@ export function priceItems(items) {
 }
 
 // Returns the options for a country, or [] if we don't ship there.
-export function shippingOptionsFor(country) {
-  return ownValue(SHIPPING_RATES, country)?.options ?? [];
+export function shippingOptionsFor(settings, country) {
+  return ownValue(settings.countries, country)?.options ?? [];
 }
 
 // obj[key] for the object's own keys only, so "__proto__" etc. can't match.
@@ -53,8 +53,8 @@ function ownValue(obj, key) {
 }
 
 // Picks the requested option, falling back to the country's first one.
-export function selectShipping(country, rateId) {
-  const options = shippingOptionsFor(country);
+export function selectShipping(settings, country, rateId) {
+  const options = shippingOptionsFor(settings, country);
   if (options.length === 0) {
     throw new OrderError("we don't ship to this country yet");
   }
@@ -63,8 +63,8 @@ export function selectShipping(country, rateId) {
 
 // Percentage fees (e.g. tariffs) for a country, as amounts in cents.
 // Each fee is a percentage of the items' total, shipping not included.
-export function feesFor(country, itemsTotal) {
-  const fees = ownValue(SHIPPING_RATES, country)?.fees ?? [];
+export function feesFor(settings, country, itemsTotal) {
+  const fees = ownValue(settings.countries, country)?.fees ?? [];
   return fees.map((fee) => ({
     id: fee.id,
     label: fee.label,
@@ -78,8 +78,15 @@ export function feesMetadata(fees) {
   return fees.map((f) => f.id + ":" + f.amount).join(",");
 }
 
-export function countryList() {
-  return Object.entries(SHIPPING_RATES).map(([code, c]) => ({ code, name: c.name }));
+export function countryList(settings) {
+  return Object.entries(settings.countries).map(([code, c]) => ({ code, name: c.name }));
+}
+
+// Prices for the site to display, in cents: { cassette: { "1x1": 2751, ... }, cd: {...} }
+export function displayPrices(settings) {
+  const out = {};
+  for (const format of Object.keys(FORMATS)) out[format] = { ...(settings.prices[format] ?? {}) };
+  return out;
 }
 
 // Countries whose addresses need a province/state. Other countries are

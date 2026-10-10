@@ -151,11 +151,46 @@
         dialog.close();
     }
 
+    // Fetches the worker config (countries, live prices...) once. Called
+    // on page load so the configurator shows the dashboard's prices.
+    let configPromise = null;
+    function loadConfig() {
+        if (!configPromise) {
+            configPromise = api("GET", "/config")
+                .then((cfg) => {
+                    applyLivePrices(cfg.prices);
+                    return cfg;
+                })
+                .catch((err) => {
+                    configPromise = null; // allow a retry later
+                    throw err;
+                });
+        }
+        return configPromise;
+    }
+
+    // Replaces the prices.js / pricesCD.js values (in dollars) with the
+    // worker's live prices (cents), then tells the page to refresh.
+    function applyLivePrices(livePrices) {
+        if (!livePrices) return;
+        const tables = [
+            [typeof prices !== "undefined" ? prices : null, livePrices.cassette],
+            [typeof pricesCD !== "undefined" ? pricesCD : null, livePrices.cd],
+        ];
+        for (const [table, live] of tables) {
+            if (!table || !live) continue;
+            for (const key of Object.keys(table)) delete table[key];
+            for (const [key, cents] of Object.entries(live)) table[key] = cents / 100;
+        }
+        document.dispatchEvent(new CustomEvent("cassetteshelf:prices"));
+        if (els && dialog.open) renderItems();
+    }
+
     // Loads the worker config and Stripe the first time checkout opens.
     let setupPromise = null;
     function setup() {
         if (!setupPromise) {
-            setupPromise = Promise.all([api("GET", "/config"), loadStripeJs()])
+            setupPromise = Promise.all([loadConfig(), loadStripeJs()])
                 .then(([cfg]) => {
                     config = cfg;
                     // Hides the tax line when the worker isn't collecting tax.
@@ -591,6 +626,9 @@
 
         renderCartButton();
         handleReturn();
+        loadConfig().catch(() => {
+            // Worker unreachable: the page keeps the prices.js prices.
+        });
     }
 
     window.cassetteCheckout = { add, open, close };

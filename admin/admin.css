@@ -1,0 +1,349 @@
+/* cassetteshelf admin dashboard. Same look as the site's checkout window:
+   vag font, black outlines, pill and round buttons, pale rounded fields. */
+
+@font-face {
+    font-family: "vag";
+    src: url("../fonts/vag.ttf");
+}
+
+:root {
+    --pale: #b3b3b3;
+    --error: #c00000;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0 clamp(16px, 4vw, 48px) 64px;
+    background: white;
+    color: black;
+    font-family: "vag", sans-serif;
+    font-size: 16px;
+}
+
+input,
+button {
+    font: inherit;
+    color: inherit;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* ---- Header (stays visible while scrolling) ---- */
+
+.admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 0;
+    background: white;
+    border-bottom: 1.5px solid black;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+    line-height: 1;
+}
+
+.admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.status {
+    margin-right: 8px;
+}
+
+.status.is-dirty {
+    font-weight: bold;
+}
+
+/* ---- Cards ---- */
+
+main {
+    max-width: 1000px;
+}
+
+.card {
+    margin-top: 24px;
+    padding: clamp(16px, 3vw, 32px);
+    border: 1.5px solid black;
+    border-radius: 24px;
+}
+
+.card h2 {
+    margin: 0 0 8px;
+    font-size: 1.5rem;
+}
+
+.hint {
+    margin: 0 0 16px;
+    max-width: 48rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+.login {
+    max-width: 28rem;
+}
+
+.message {
+    margin-top: 24px;
+    padding: 12px 16px;
+    border: 1.5px solid black;
+    border-radius: 12px;
+}
+
+.message.is-error,
+.error {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+/* ---- Fields ---- */
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.field input {
+    width: 100%;
+    max-width: 28rem;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--pale);
+    border-radius: 6px;
+    background: white;
+}
+
+.field input:focus,
+.prices input:focus {
+    outline: none;
+    border-color: black;
+}
+
+input.is-invalid {
+    border-color: var(--error) !important;
+    background: #fff4f4 !important;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.checkbox input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: black;
+}
+
+/* ---- Buttons ---- */
+
+.pill {
+    padding: 6px 20px;
+    border: 1.5px solid black;
+    border-radius: 999px;
+    background: white;
+    color: black;
+    cursor: pointer;
+}
+
+.pill-black {
+    background: black;
+    color: white;
+}
+
+.pill:active,
+.round:active {
+    transform: scale(0.96);
+}
+
+.pill:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Round × button, drawn with two lines so it's exactly centered. */
+.round {
+    position: relative;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1.5px solid black;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+}
+
+.round span::before,
+.round span::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 1.5px;
+    margin: -0.75px 0 0 -7px;
+    background: black;
+    transform: rotate(45deg);
+}
+
+.round span::after {
+    transform: rotate(-45deg);
+}
+
+/* ---- Prices grid ---- */
+
+.prices {
+    margin-bottom: 24px;
+    overflow-x: auto;
+}
+
+.prices h3 {
+    margin: 0 0 8px;
+}
+
+.prices table {
+    border-collapse: separate;
+    border-spacing: 6px;
+    margin-left: -6px;
+}
+
+.prices th {
+    font-weight: normal;
+    color: #555;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+
+.prices thead th {
+    text-align: center;
+}
+
+.prices tbody th {
+    text-align: right;
+}
+
+.prices th.corner {
+    width: 5.5em;
+    white-space: normal;
+    text-align: right;
+    line-height: 1.2;
+}
+
+.prices input {
+    width: 92px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--pale);
+    border-radius: 6px;
+    text-align: right;
+}
+
+.prices input:placeholder-shown {
+    background: #f4f4f4;
+}
+
+/* ---- Countries ---- */
+
+.country {
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid var(--pale);
+    border-radius: 16px;
+}
+
+.country-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.country-head .field {
+    flex: 1;
+    min-width: 12rem;
+}
+
+.country-code {
+    margin-bottom: 18px;
+    color: #555;
+}
+
+.country-head .pill {
+    margin-bottom: 12px;
+}
+
+.country h4 {
+    margin: 12px 0 8px;
+}
+
+.rows {
+    margin-left: 24px;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.row .field {
+    flex: 1;
+    min-width: 10rem;
+    max-width: 20rem;
+}
+
+.row .field-small {
+    flex: none;
+    min-width: 0;
+    width: 7rem;
+}
+
+.row .round {
+    margin-bottom: 14px;
+}
+
+.add-row {
+    margin: 0 0 8px 24px;
+}
+
+.add-country {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.add-country .field {
+    width: 22rem;
+    max-width: 100%;
+}
+
+.add-country .pill {
+    margin-bottom: 12px;
+}

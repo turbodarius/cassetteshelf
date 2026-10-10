@@ -8,10 +8,11 @@ secret key and can't change what a customer is charged.
 
 | File | What it's for |
 |---|---|
-| `src/shipping.js` | **Flat shipping rates and percentage fees (e.g. tariffs) per country.** Edit, then redeploy. |
-| `src/catalog.js` | **Official prices** (cents). Must match `prices.js` / `pricesCD.js`. |
+| `src/settings.js` | Loads, checks and saves the store settings edited in the `/admin` dashboard. |
+| `src/shipping.js` | Starting countries, shipping rates and fees (until the dashboard's first save). |
+| `src/catalog.js` | Product formats and starting prices (cents). Must match `prices.js` / `pricesCD.js`. |
 | `src/pricing.js` | Cart validation and price math (no Stripe calls). |
-| `src/index.js` | The routes: `/config`, `/quote`, `/checkout`, `/webhook`. |
+| `src/index.js` | The routes: `/config`, `/quote`, `/checkout`, `/webhook`, `/admin/settings`. |
 | `test/` | `npm test`, runs without a Stripe account. |
 
 ## One-time setup
@@ -73,53 +74,47 @@ with the shipping address and the items (`metadata.items`, e.g. `cassette:2x2:1`
    - Set your origin address (Montréal).
    - Add a **registration** for every tax you're registered to collect (e.g. GST/HST, QST, any US states).
    - Stripe Tax only charges tax where you've added a registration; with none, tax will be 0.
-2. Set `COLLECT_TAX = "true"` in `wrangler.toml` and run `npm run deploy`.
+2. Tick **Collect sales tax with Stripe Tax** in the dashboard and save.
 
 The checkout then shows a tax line (anything marked `data-tax-only` in the
-markup) and adds tax to the total once the address is complete. Set it back to
-`"false"` to turn tax off again.
+markup) and adds tax to the total once the address is complete. Untick it to
+turn tax off again. (`COLLECT_TAX` in `wrangler.toml` is only the starting
+value before the dashboard's first save.)
 
-## Changing shipping rates or prices
+## Admin dashboard (prices, countries, shipping, fees, tax)
 
-- **Shipping:** edit `src/shipping.js` (amounts in cents, CAD). Countries use
-  their two-letter ISO code (`FR`, `GB`, `DE`, ...). New countries just work:
-  the checkout's address form (Stripe's, with autocomplete) offers exactly the
-  countries listed there and adapts its fields to each country's format.
-- **Percentage fees (e.g. tariffs):** add a `fees` list to a country in
-  `src/shipping.js`:
-  ```js
-  US: {
-    name: "United States",
-    fees: [{ id: "tariffs", label: "tariffs", percent: 50 }],
-    options: [ ... ],
-  },
-  ```
-  Each fee is `percent` of the items' total (shipping not included), rounded to
-  the cent, and appears as its own line in the summary ("Tariffs (50%)"). A
-  country can have several fees; remove the `fees` line for none.
-- **Prices:** edit `prices.js` / `pricesCD.js` on the site **and** `src/catalog.js`.
+Everything below is edited at `/admin` on the site (for now
+`https://new-features.cassetteshelf-preview.pages.dev/admin/`, later
+`https://cassetteshelf.com/admin/`):
 
-Then:
+- **Prices** for every size of cassette and CD shelf. Leave a size empty to
+  make it unavailable (the site shows "contact us").
+- **Countries** you ship to, each with its **shipping options** (flat price per
+  order) and **fees** (percentages of the shelves' total, e.g. 50% US tariffs).
+- **Sales tax** on/off (see [Turning on sales tax](#turning-on-sales-tax)).
 
-```sh
-npm test        # fails if catalog.js and the site's prices disagree
-npm run deploy
-```
+Saving takes effect on the site within about a minute, with no redeploy. The
+worker checks every save, so a typo can't break the checkout.
 
-## Local development
+### One-time setup
 
-```sh
-cp .dev.vars.example .dev.vars          # fill in test keys
-npm run dev                             # worker on http://localhost:8787
-# in another terminal, from the repo root:
-python3 -m http.server 8000             # site on http://localhost:8000
-```
+1. Pick a long password and keep it in your password manager. On a Mac,
+   `openssl rand -base64 24` makes a good one.
+2. Store it in Cloudflare (it's never in the repo):
+   ```sh
+   cd worker
+   npx wrangler secret put ADMIN_TOKEN
+   ```
+3. Deploy. The first deploy also creates the storage the dashboard saves to
+   (`SETTINGS` in `wrangler.toml`); if Wrangler asks, choose to create a new
+   KV namespace:
+   ```sh
+   npm run deploy
+   ```
+4. Open `/admin/` on the site and log in with the password.
 
-While testing locally, set `API_BASE` in `checkout.js` to `http://localhost:8787`.
-To receive webhooks locally, use the Stripe CLI:
-`stripe listen --forward-to localhost:8787/webhook`.
-
-## Logs
-
-`npx wrangler tail` streams the worker's logs live, including an `order paid` line per order.
-To get notified of new orders, fill in the `TODO` in `handleWebhook` (`src/index.js`).
+Until the first save, the dashboard shows the starting values from
+`src/catalog.js` (prices) and `src/shipping.js` (countries, shipping, fees).
+After that, the dashboard's values are used and edits to those files have no
+effect. The site's `prices.js` / `pricesCD.js` are only a fallback shown if the
+worker can't be reached; `npm test` checks they still match `src/catalog.js`.

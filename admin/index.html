@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>cassetteshelf admin</title>
+    <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+    <header class="admin-header">
+        <h1>cassetteshelf admin</h1>
+        <div id="actions" class="admin-actions" hidden>
+            <span id="status" class="status"></span>
+            <button type="button" id="saveButton" class="pill pill-black">Save</button>
+            <button type="button" id="logoutButton" class="pill">Log out</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Log in -->
+        <form id="loginView" class="card login">
+            <h2>Log in</h2>
+            <label class="field">
+                <span>Admin password</span>
+                <input type="password" id="password" autocomplete="current-password" required>
+            </label>
+            <p id="loginError" class="error" role="alert" hidden></p>
+            <button type="submit" class="pill pill-black">Log in</button>
+        </form>
+
+        <!-- Editor -->
+        <div id="editorView" hidden>
+            <div id="message" class="message" role="alert" hidden></div>
+
+            <section class="card">
+                <h2>Prices</h2>
+                <p class="hint">In CAD. Each box is a size, columns × rows, like the configurator.
+                    Leave a box empty to make that size unavailable (the site shows "contact us").</p>
+                <div id="prices"></div>
+            </section>
+
+            <section class="card">
+                <h2>Countries &amp; shipping</h2>
+                <p class="hint">Customers can only pick the countries listed here. Each country needs at
+                    least one shipping option (a flat price per order). Fees, like tariffs, are a
+                    percentage of the shelves' total, shipping not included.</p>
+                <div id="countries"></div>
+                <div class="add-country">
+                    <label class="field">
+                        <span>Add a country (two-letter code, e.g. FR, GB, DE)</span>
+                        <input id="newCountryCode" maxlength="2" autocomplete="off" spellcheck="false">
+                    </label>
+                    <button type="button" id="addCountryButton" class="pill">Add country</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Sales tax</h2>
+                <label class="checkbox">
+                    <input type="checkbox" id="collectTax">
+                    <span>Collect sales tax with Stripe Tax</span>
+                </label>
+                <p class="hint">Only turn this on after adding your tax registrations in Stripe
+                    (Dashboard → Tax); Stripe only charges tax where you're registered.</p>
+            </section>
+        </div>
+    </main>
+
+    <!-- One shipping option / fee row inside a country. Cloned by admin.js. -->
+    <template id="optionRowTemplate">
+        <div class="row">
+            <label class="field"><span data-name-label>Name</span><input data-field="label" autocomplete="off"></label>
+            <label class="field field-small"><span data-amount-label>Price ($)</span><input data-field="amount" inputmode="decimal" autocomplete="off"></label>
+            <button type="button" class="round" data-action="remove" aria-label="remove"><span aria-hidden="true"></span></button>
+        </div>
+    </template>
+
+    <script src="admin.js"></script>
+</body>
+</html>

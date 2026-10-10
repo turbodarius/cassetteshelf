@@ -1,3 +1,6 @@
+// STARTING countries, shipping rates and fees. Edit them in the /admin
+// dashboard instead: these values are only used until its first save.
+//
 // Flat shipping rates per country, charged once per order.
 //
 // - Keys are ISO country codes. Only countries listed here can be
@@ -10,7 +13,7 @@
 //   Each is `percent` of the items' total (shipping not included), shown
 //   to the customer as its own line, e.g. "Tariffs (50%)".
 //
-// The amounts below are PLACEHOLDERS -- set your real rates before going live.
+// The amounts below are PLACEHOLDERS -- set your real rates in the dashboard.
 
 export const SHIPPING_RATES = {
   CA: {

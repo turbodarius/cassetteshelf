@@ -1,9 +1,9 @@
-// Official price list used to charge customers, in cents (CAD).
+// Product formats, and the STARTING prices in cents (CAD).
 //
-// The site's prices.js / pricesCD.js are only used for display on the
-// page. THIS file decides what customers actually pay, so whenever you
-// change a price, change it in both places. `npm test` (in /worker)
-// fails if the two ever disagree.
+// Prices are edited in the /admin dashboard. These values are only used
+// until the dashboard's first save (and the site's prices.js/pricesCD.js
+// are only a fallback shown if the worker can't be reached). `npm test`
+// checks these and prices.js still agree.
 
 export const CURRENCY = "cad";
 

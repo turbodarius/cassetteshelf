@@ -323,3 +323,123 @@ test("fees: with tax on, fees are part of the taxed amount", async () => {
   assert.equal(body.tax, tax);
   assert.equal(body.total, subtotal + tariff + 2500 + tax);
 });
+
+// ---- Admin dashboard API ----
+
+function fakeKV() {
+  const store = new Map();
+  return {
+    store,
+    async get(key, type) {
+      const v = store.get(key);
+      return v === undefined ? null : type === "json" ? JSON.parse(v) : v;
+    },
+    async put(key, value) {
+      store.set(key, value);
+    },
+  };
+}
+
+const PASSWORD = "correct horse battery staple";
+const adminEnv = () => ({ ...noTaxEnv, ADMIN_TOKEN: PASSWORD, SETTINGS: fakeKV() });
+const admin = (workerEnv, { method = "GET", body, password = PASSWORD } = {}) =>
+  call("/admin/settings", {
+    method,
+    body,
+    workerEnv,
+    headers: password === null ? {} : { authorization: "Bearer " + password },
+  });
+
+test("admin: password required, wrong password rejected, unset password disables it", async () => {
+  const env = adminEnv();
+  assert.equal((await admin(env, { password: null })).status, 401);
+  assert.equal((await admin(env, { password: "nope" })).status, 401);
+  assert.equal((await admin(env, { password: PASSWORD + "x" })).status, 401);
+  assert.equal((await admin({ ...env, ADMIN_TOKEN: undefined })).status, 503);
+  const ok = await admin(env);
+  assert.equal(ok.status, 200);
+  const body = await ok.json();
+  assert.equal(body.updatedAt, null);
+  assert.equal(body.settings.prices.cassette["1x1"], FORMATS.cassette.prices["1x1"]);
+  assert.equal(body.sizes.length, 36);
+  assert.equal(body.storageReady, true);
+});
+
+test("admin: CORS lets the dashboard send its password and save", async () => {
+  const res = await call("/admin/settings", { method: "OPTIONS", workerEnv: adminEnv() });
+  assert.match(res.headers.get("access-control-allow-headers"), /Authorization/);
+  assert.match(res.headers.get("access-control-allow-methods"), /PUT/);
+});
+
+test("admin: saved settings drive /config, quotes and payments", async () => {
+  const env = adminEnv();
+  const { settings } = await (await admin(env)).json();
+  settings.prices.cassette["1x1"] = 3000;
+  delete settings.prices.cassette["2x2"];
+  settings.countries.FR = {
+    name: "France",
+    fees: [{ id: "duties", label: "duties", percent: 20 }],
+    options: [{ id: "standard", label: "standard", amount: 4000 }],
+  };
+  settings.countries.US.fees = [];
+  const save = await admin(env, { method: "PUT", body: { settings, updatedAt: null } });
+  assert.equal(save.status, 200);
+  assert.ok((await save.json()).updatedAt);
+
+  const config = await (await call("/config", { method: "GET", workerEnv: env })).json();
+  assert.deepEqual(config.countries.map((c) => c.code), ["CA", "US", "FR"]);
+  assert.equal(config.prices.cassette["1x1"], 3000);
+  assert.equal(config.prices.cassette["2x2"], undefined);
+
+  const one = [{ format: "cassette", size: "1x1", quantity: 1 }];
+  const fr = await (await call("/quote", {
+    body: { items: one, address: { country: "FR" } }, workerEnv: env,
+  })).json();
+  assert.equal(fr.total, 3000 + 4000 + 600);
+
+  const us = await (await call("/quote", { body: { items: one, address: { country: "US" } }, workerEnv: env })).json();
+  assert.deepEqual(us.fees, []);
+
+  const gone = await call("/quote", { body: { items: [{ format: "cassette", size: "2x2", quantity: 1 }] }, workerEnv: env });
+  assert.equal(gone.status, 400);
+});
+
+test("admin: the tax switch is a setting", async () => {
+  const env = adminEnv();
+  const { settings } = await (await admin(env)).json();
+  settings.collectTax = true;
+  await admin(env, { method: "PUT", body: { settings, updatedAt: null } });
+  const config = await (await call("/config", { method: "GET", workerEnv: env })).json();
+  assert.equal(config.taxEnabled, true);
+  await call("/quote", { body: { items: cart, address: ADDRESS }, workerEnv: env });
+  assert.ok(stripeCalls.some((c) => c.path === "/v1/tax/calculations"));
+});
+
+test("admin: invalid settings are refused with a message and nothing is saved", async () => {
+  const env = adminEnv();
+  const { settings } = await (await admin(env)).json();
+  settings.countries.CA.options = [];
+  const res = await admin(env, { method: "PUT", body: { settings, updatedAt: null } });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /Canada: add at least one shipping option/);
+  assert.equal(env.SETTINGS.store.size, 0);
+});
+
+test("admin: a stale save doesn't overwrite a newer one", async () => {
+  const env = adminEnv();
+  const { settings } = await (await admin(env)).json();
+  const first = await (await admin(env, { method: "PUT", body: { settings, updatedAt: null } })).json();
+  // A second tab still thinks nothing was saved yet.
+  const stale = await admin(env, { method: "PUT", body: { settings, updatedAt: null } });
+  assert.equal(stale.status, 409);
+  const fresh = await admin(env, { method: "PUT", body: { settings, updatedAt: first.updatedAt } });
+  assert.equal(fresh.status, 200);
+});
+
+test("admin: saving without storage set up explains why", async () => {
+  const env = { ...adminEnv(), SETTINGS: undefined };
+  const { settings } = await (await admin(env)).json();
+  const res = await admin(env, { method: "PUT", body: { settings, updatedAt: null } });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /storage isn't set up/);
+});
