@@ -566,6 +566,11 @@
                         <h3>shipping</h3>
                         <p id="checkoutShippingHint" class="checkout-hint">choose a country to see shipping options.</p>
                         <div id="checkoutShippingOptions" class="checkout-shipping-options" role="radiogroup" aria-label="shipping options"></div>
+                        <!-- Shown once shipping options are; sets shipping to 0. -->
+                        <label id="checkoutWaive" class="checkout-waive" hidden>
+                            <input type="checkbox" name="waiveShipping">
+                            <span>Waive Shipping (Must be pre-approved by seller or order will be refunded)</span>
+                        </label>
                     </section>
 
                     <section class="checkout-section checkout-summary">

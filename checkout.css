@@ -27,6 +27,7 @@
      .checkout-hint             "choose a country..." text
      .checkout-shipping-options / .checkout-shipping-option
        .checkout-shipping-label / -amount  (input[type=radio] inside)
+     .checkout-waive            "Waive Shipping" checkbox under the options
      .checkout-totals / .checkout-row / .checkout-row-total  (dt + dd)
        .checkout-row-fee          a percentage fee row, e.g. "Tariffs (50%)"
        [data-tax-only]          the tax row, hidden while tax is off
@@ -192,6 +193,25 @@ body:has(.checkout[open]) {
 
 .checkout-shipping-option input {
     margin: 0 8px 0 0;
+}
+
+/* "Waive Shipping": checkbox under the radios, text across the other
+   columns so it doesn't widen the names column. */
+.checkout-waive {
+    display: grid;
+    grid-column: 2 / -1;
+    grid-template-columns: subgrid;
+    align-items: start;
+    margin-top: 12px;
+    cursor: pointer;
+}
+
+.checkout-waive input {
+    margin: 2px 8px 0 0;
+}
+
+.checkout-waive span {
+    grid-column: 2 / -1;
 }
 
 /* Space between the longest name and the prices. */

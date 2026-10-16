@@ -348,6 +348,7 @@
                 (format === "custom" ? { format, code, quantity } : { format, size, quantity })),
             address: currentAddress(),
             shippingRateId: selectedShippingRate(),
+            waiveShipping: els.waive.querySelector("input").checked,
         };
     }
 
@@ -579,6 +580,7 @@
         const options = quote ? quote.shippingOptions : [];
         els.shippingOptions.replaceChildren();
         els.shippingHint.hidden = options.length > 0;
+        els.waive.hidden = options.length === 0 || !(config && config.waiveShipping);
 
         for (const option of options) {
             const choice = els.shippingTemplate.content.firstElementChild.cloneNode(true);
@@ -596,7 +598,9 @@
         renderFees();
 
         setTotal("subtotal", formatMoney(quote ? quote.subtotal : localSubtotal()));
-        setTotal("shipping", quote && quote.shipping !== null ? formatMoney(quote.shipping) : "—");
+        setTotal("shipping", quote && quote.shipping !== null
+            ? formatMoney(quote.shipping) + (quote.shippingWaived ? " (waived)" : "")
+            : "—");
         setTotal("tax", quote && quote.tax !== null
             ? formatMoney(quote.tax)
             : (quote && quote.taxError) || "calculated from your address");
@@ -715,6 +719,7 @@
             details: document.getElementById("checkoutDetails"),
             shippingHint: document.getElementById("checkoutShippingHint"),
             shippingOptions: document.getElementById("checkoutShippingOptions"),
+            waive: document.getElementById("checkoutWaive"),
             message: document.getElementById("checkoutMessage"),
             payButton: document.getElementById("checkoutPayButton"),
             payTotal: document.querySelector("[data-pay-total]"),
@@ -739,6 +744,7 @@
 
         form.addEventListener("submit", pay);
         els.shippingOptions.addEventListener("change", () => scheduleQuote(0));
+        els.waive.addEventListener("change", () => scheduleQuote(0));
         els.codeButton.addEventListener("click", applyCode);
         // Enter in the code field applies the code instead of paying.
         els.codeInput.addEventListener("keydown", (event) => {

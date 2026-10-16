@@ -171,6 +171,13 @@ ship are labelled and counted, and **Only show orders to ship** filters the
 list. **Undo** clears it. Carriers and their tracking pages are listed in
 `CARRIERS` in `src/orders.js`.
 
+**Waived shipping**: the checkout has a "Waive Shipping (Must be
+pre-approved by seller or order will be refunded)" box under the shipping
+options. Ticked, shipping is 0 (fees like tariffs still apply). These orders
+are saved with `shipping_waived` on the payment, flagged "shipping waived:
+pre-approved?" in the Orders tab and marked WAIVED in the new-order email, so
+you can refund any you didn't agree to (in Stripe).
+
 **Custom products** (their own tab): make a one-off product with its own
 price for a customer: a code (type one or press *Make one up*), the name the
 customer sees, the price, how many orders may use it (1 by default; empty for

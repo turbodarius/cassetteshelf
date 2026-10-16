@@ -108,6 +108,7 @@ export function toOrder(pi) {
     shipping: {
       option: meta.shipping_rate ?? "",
       amount: toInt(meta.shipping_amount),
+      waived: meta.shipping_waived === "true",
     },
     fees: parseFees(meta.fees),
     tax: toInt(meta.tax_amount),
