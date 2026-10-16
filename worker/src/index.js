@@ -3,6 +3,7 @@
 // Routes:
 //   GET  /config          publishable key, countries we ship to, prices
 //   POST /quote           prices a cart: subtotal, shipping options, tax, total
+//   POST /code            looks up a custom product code (custom.js)
 //   POST /checkout        re-prices the cart and creates a Stripe PaymentIntent
 //   POST /webhook         Stripe webhook: records the tax transaction once paid
 //   GET  /admin/settings  (admin password) current store settings
@@ -16,6 +17,8 @@
 //   DELETE /admin/orders/<id>/shipment   (admin password) undo "shipped"
 //   POST /admin/orders/<id>/shipping-email (admin password) (re)send the customer's shipping email
 //   POST /admin/test-shipping-email      (admin password) sends a sample shipping email to the shop
+//   GET/POST /admin/custom-products      (admin password) list / create custom products
+//   PUT/DELETE /admin/custom-products/<code> (admin password) edit / delete one
 //
 // Secrets (set with `wrangler secret put`): STRIPE_SECRET_KEY,
 //   STRIPE_WEBHOOK_SECRET, ADMIN_TOKEN (the dashboard password),
@@ -28,6 +31,10 @@
 import Stripe from "stripe";
 import { CURRENCY, FORMATS, TAX_CODE } from "./catalog.js";
 import { SIZES, SettingsError, loadSettings, saveSettings } from "./settings.js";
+import {
+  createCustomProduct, customProductProblem, deleteCustomProduct, loadCustomProducts, normalizeCode,
+  publicCustomProduct, recordCustomProductOrder, updateCustomProduct,
+} from "./custom.js";
 import { CARRIERS, getOrder, listOrders, markShippingEmailed, setShipment, toOrder } from "./orders.js";
 import { PERIODS, analyticsReport, recordEvent } from "./analytics.js";
 import { clearLegacyOrders, importLegacyOrders, legacyToOrder, loadLegacyOrders } from "./legacy.js";
@@ -38,6 +45,7 @@ import {
   OrderError,
   cleanAddress,
   countryList,
+  customNamesMetadata,
   displayPrices,
   feesFor,
   feesMetadata,
@@ -93,13 +101,23 @@ export default {
         };
       } else if (url.pathname === "/quote" && request.method === "POST") {
         const { settings } = await loadSettings(env);
-        const quote = await buildQuote(stripeClient(env), settings, await request.json(), {
+        const order = await request.json();
+        const quote = await buildQuote(stripeClient(env), settings, order, {
           complete: false,
+          customProducts: await customProductsFor(env, order),
         });
         body = publicQuote(quote);
+      } else if (url.pathname === "/code" && request.method === "POST") {
+        const code = normalizeCode((await request.json().catch(() => null))?.code);
+        if (!code) throw new OrderError("please enter a code");
+        const product = (await loadCustomProducts(env)).find((p) => p.code === code);
+        const problem = customProductProblem(product);
+        if (problem) throw new OrderError(problem);
+        body = { product: publicCustomProduct(product) };
       } else if (url.pathname === "/checkout" && request.method === "POST") {
         const { settings } = await loadSettings(env);
-        body = await createCheckout(stripeClient(env), settings, await request.json());
+        const order = await request.json();
+        body = await createCheckout(stripeClient(env), settings, order, await customProductsFor(env, order));
       } else {
         return json({ error: "not found" }, 404, cors);
       }
@@ -178,6 +196,30 @@ async function handleAdmin(request, env, cors, url) {
       return json({ error: err.message }, 502, cors);
     }
     return json({ sentTo: to }, 200, cors);
+  }
+
+  if (url.pathname === "/admin/custom-products") {
+    if (request.method === "GET") {
+      return json({ products: await loadCustomProducts(env) }, 200, cors);
+    }
+    if (request.method === "POST") {
+      const body = await request.json().catch(() => null);
+      return json({ products: await createCustomProduct(env, body?.product) }, 200, cors);
+    }
+    return json({ error: "not found" }, 404, cors);
+  }
+
+  const customProduct = url.pathname.match(/^\/admin\/custom-products\/([^/]+)$/);
+  if (customProduct) {
+    const code = decodeURIComponent(customProduct[1]);
+    if (request.method === "PUT") {
+      const body = await request.json().catch(() => null);
+      return json({ products: await updateCustomProduct(env, code, body?.product) }, 200, cors);
+    }
+    if (request.method === "DELETE") {
+      return json({ products: await deleteCustomProduct(env, code) }, 200, cors);
+    }
+    return json({ error: "not found" }, 404, cors);
   }
 
   if (url.pathname === "/admin/legacy-orders") {
@@ -273,9 +315,9 @@ function stripeClient(env) {
 // Prices the cart from the request. With `complete`, a missing address
 // (or one Stripe Tax can't use) is an error; otherwise the quote simply
 // has no total yet. Without `collectTax`, total = items + shipping + fees.
-async function buildQuote(stripe, settings, body, { complete }) {
+async function buildQuote(stripe, settings, body, { complete, customProducts = [] }) {
   const collectTax = settings.collectTax;
-  const lines = priceItems(settings, body?.items);
+  const lines = priceItems(settings, body?.items, customProducts);
   const subtotal = lines.reduce((sum, l) => sum + l.amount, 0);
   const address = cleanAddress(body?.address);
 
@@ -374,14 +416,21 @@ function publicQuote(quote) {
   };
 }
 
-async function createCheckout(stripe, settings, body) {
+// The custom products, read only when the cart has one.
+async function customProductsFor(env, body) {
+  const items = Array.isArray(body?.items) ? body.items : [];
+  return items.some((i) => i?.format === "custom") ? loadCustomProducts(env) : [];
+}
+
+async function createCheckout(stripe, settings, body, customProducts) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const address = cleanAddress(body?.address);
   validateCheckoutDetails({ name, email, address });
 
-  const quote = await buildQuote(stripe, settings, body, { complete: true });
+  const quote = await buildQuote(stripe, settings, body, { complete: true, customProducts });
+  const customNames = customNamesMetadata(quote.lines);
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: quote.total,
@@ -400,6 +449,7 @@ async function createCheckout(stripe, settings, body) {
       shipping_amount: String(quote.shippingRate.amount),
       fees: feesMetadata(quote.fees),
       tax_amount: String(quote.tax),
+      ...(customNames && { custom_products: customNames }),
       // Only set when Stripe Tax is on; the webhook records it as a sale.
       ...(quote.calculation && { tax_calculation: quote.calculation.id }),
     },
@@ -441,6 +491,10 @@ async function handleWebhook(request, env) {
     }
 
     console.log("order paid", paymentIntent.id, paymentIntent.metadata?.items);
+
+    // Counts the order on its custom products (for one-time codes). A
+    // failure makes Stripe retry the webhook; the count is only added once.
+    await recordCustomProductOrder(env, paymentIntent);
 
     // "New order" email to the shop. A failure is logged, not retried:
     // the order itself is fine and is in the dashboard either way.

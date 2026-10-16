@@ -519,6 +519,20 @@
                     <h3>items</h3>
                     <ul id="checkoutItems" class="checkout-items"></ul>
                     <p id="checkoutEmpty" class="checkout-empty" hidden>your cart is empty.</p>
+
+                    <!-- Custom products: a code made in the dashboard adds that
+                         product to the cart at its own price. -->
+                    <details id="checkoutCode" class="checkout-code">
+                        <summary>have a product code?</summary>
+                        <div class="checkout-code-row">
+                            <label class="checkout-field">
+                                <span>product code</span>
+                                <input id="checkoutCodeInput" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30">
+                            </label>
+                            <button type="button" id="checkoutCodeButton" class="checkout-code-apply">apply</button>
+                        </div>
+                        <p id="checkoutCodeMessage" class="checkout-code-message" role="alert" hidden></p>
+                    </details>
                 </section>
 
                 <!-- Everything below is hidden while the cart is empty. -->

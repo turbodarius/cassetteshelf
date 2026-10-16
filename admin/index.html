@@ -15,6 +15,7 @@
         <nav id="tabs" class="tabs" hidden>
             <button type="button" class="tab is-active" data-tab="settings">Settings</button>
             <button type="button" class="tab" data-tab="orders">Orders</button>
+            <button type="button" class="tab" data-tab="custom">Custom products</button>
             <button type="button" class="tab" data-tab="analytics">Analytics</button>
         </nav>
         <div id="actions" class="admin-actions" hidden>
@@ -97,6 +98,65 @@
                     <button type="button" id="refreshAnalytics" class="pill">Refresh</button>
                 </div>
                 <div id="analytics"></div>
+            </div>
+
+            <!-- Custom products: one-off products with a code and their own
+                 price (worker/src/custom.js). Built by admin.js. -->
+            <div id="customTab" hidden>
+                <section class="card">
+                    <h2 id="customFormTitle">New custom product</h2>
+                    <p class="hint">Make a product with its own price for one customer. Send them its link, or
+                        its code to enter in the cart ("have a product code?"); the product goes into their
+                        cart at this price. Shipping and fees (like tariffs) are added as for any shelf.</p>
+                    <form id="customForm" class="custom-form" novalidate>
+                        <div class="custom-code">
+                            <label class="field">
+                                <span>Code (letters, numbers, dashes)</span>
+                                <input id="customCode" maxlength="30" autocomplete="off" spellcheck="false">
+                            </label>
+                            <button type="button" id="generateCode" class="pill">Make one up</button>
+                        </div>
+                        <label class="field">
+                            <span>Name (the customer sees it in the cart and on the receipt)</span>
+                            <input id="customName" maxlength="80" autocomplete="off" placeholder="e.g. Custom 7x3 cassette shelf, walnut">
+                        </label>
+                        <label class="field field-small">
+                            <span>Price ($)</span>
+                            <input id="customPrice" inputmode="decimal" autocomplete="off">
+                        </label>
+                        <label class="field field-small">
+                            <span>Orders allowed (empty = no limit)</span>
+                            <input id="customUses" inputmode="numeric" autocomplete="off" value="1">
+                        </label>
+                        <label class="field">
+                            <span>Picture in the cart</span>
+                            <select id="customImage"></select>
+                        </label>
+                        <label class="field">
+                            <span>Private note (only you see it)</span>
+                            <input id="customNote" maxlength="300" autocomplete="off" placeholder="e.g. who it's for">
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="customActive" checked>
+                            <span>On (the code works)</span>
+                        </label>
+                        <div class="custom-actions">
+                            <button type="submit" id="customSubmit" class="pill pill-black">Create product</button>
+                            <button type="button" id="customCancel" class="pill" hidden>Cancel</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="card">
+                    <div class="orders-head">
+                        <h2>Custom products</h2>
+                        <div class="orders-actions">
+                            <button type="button" id="refreshCustom" class="pill">Refresh</button>
+                        </div>
+                    </div>
+                    <p id="customSummary" class="hint"></p>
+                    <div id="customList" class="orders"></div>
+                </section>
             </div>
 
             <!-- Orders: every paid order, read from Stripe (newest first). -->

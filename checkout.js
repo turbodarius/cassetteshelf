@@ -5,6 +5,7 @@
 //
 // Public API (used by the configurator in index.html):
 //   cassetteCheckout.add(format, size)   "cassette" | "cd", e.g. "3x4"
+//   cassetteCheckout.addCode(code)       a custom product's code (from the dashboard)
 //   cassetteCheckout.open()
 //   cassetteCheckout.close()
 
@@ -60,8 +61,14 @@
         return (cents / 100).toFixed(2) + "$ CAD";
     }
 
-    // Image shown next to each cart item.
+    // Image shown next to each cart item. Custom products show the picture
+    // chosen in the dashboard ("cassette:3x4"), or the site's icon.
     function itemImage(item) {
+        if (item.format === "custom") {
+            if (!item.image) return "images/favicon.svg";
+            const [format, size] = item.image.split(":");
+            return itemImage({ format, size });
+        }
         return item.format === "cd"
             ? "images/cd/thumbs/" + item.size + "cd.png"
             : "images/thumbs/" + item.size + ".png";
@@ -73,7 +80,8 @@
 
     // ---- State ------------------------------------------------------------
 
-    let cart = loadCart();      // [{ format, size, quantity }]
+    let cart = loadCart();      // [{ format, size, quantity }] or, for custom
+                                // products, [{ format: "custom", code, name, price, image, quantity: 1 }]
     let config = null;          // GET /config response
     let quote = null;           // latest POST /quote response
     let quotedKey = "";         // request body of the latest quote
@@ -129,6 +137,56 @@
         track("add_to_cart", format + ":" + size);
         saveCart();
         open();
+    }
+
+    // Looks up a custom product's code with the worker and adds the product
+    // (one per order). Throws with a message for the customer if the code
+    // isn't valid.
+    async function addCode(code) {
+        const { product } = await api("POST", "/code", { code });
+        if (!cart.some((i) => i.format === "custom" && i.code === product.code)) {
+            cart.push({
+                format: "custom", code: product.code, name: product.name, price: product.price,
+                image: product.image, quantity: 1,
+            });
+            track("add_to_cart", "custom");
+            saveCart();
+        }
+        renderItems();
+        scheduleQuote(0);
+        return product;
+    }
+
+    async function applyCode() {
+        const code = els.codeInput.value.trim();
+        if (!code) return;
+        els.codeButton.disabled = true;
+        hideCodeMessage();
+        try {
+            await addCode(code);
+            els.codeInput.value = "";
+            els.code.open = false;
+        } catch (err) {
+            showCodeMessage(err.message);
+        } finally {
+            els.codeButton.disabled = false;
+        }
+    }
+
+    // Links like cassetteshelf.com/?code=THECODE open the cart with that product.
+    function handleCodeLink() {
+        const params = new URLSearchParams(location.search);
+        const code = params.get("code");
+        if (!code) return;
+        params.delete("code");
+        const query = params.toString();
+        history.replaceState(null, "", location.pathname + (query ? "?" + query : "") + location.hash);
+        open();
+        addCode(code).catch((err) => {
+            els.code.open = true;
+            els.codeInput.value = code;
+            showCodeMessage(err.message);
+        });
     }
 
     function changeQuantity(index, delta) {
@@ -286,7 +344,8 @@
 
     function orderRequest() {
         return {
-            items: cart.map(({ format, size, quantity }) => ({ format, size, quantity })),
+            items: cart.map(({ format, size, code, quantity }) =>
+                (format === "custom" ? { format, code, quantity } : { format, size, quantity })),
             address: currentAddress(),
             shippingRateId: selectedShippingRate(),
         };
@@ -332,6 +391,7 @@
             quotePending = false;
             quotedKey = key;
             hideMessage();
+            syncCustomItems(result.items);
         } catch (err) {
             if (seq !== quoteSeq) return;
             quote = null;
@@ -342,6 +402,24 @@
             if (seq === quoteSeq) setLoading(false);
         }
         renderQuote();
+    }
+
+    // Keeps a custom product's name and price up to date if they were
+    // edited in the dashboard after it was added to the cart.
+    function syncCustomItems(lines) {
+        let changed = false;
+        for (const line of lines || []) {
+            const item = line.format === "custom" && cart.find((i) => i.format === "custom" && i.code === line.size);
+            if (item && (item.name !== line.label || item.price !== line.unitAmount)) {
+                item.name = line.label;
+                item.price = line.unitAmount;
+                changed = true;
+            }
+        }
+        if (changed) {
+            saveCart();
+            renderItems();
+        }
     }
 
     function estimatedTotal() {
@@ -356,6 +434,7 @@
 
     // Display-only price from the site's prices.js / pricesCD.js.
     function localPrice(item) {
+        if (item.format === "custom") return item.price;
         const table = item.format === "cd"
             ? (typeof pricesCD !== "undefined" ? pricesCD : {})
             : (typeof prices !== "undefined" ? prices : {});
@@ -469,12 +548,14 @@
         cart.forEach((item, index) => {
             const row = els.itemTemplate.content.firstElementChild.cloneNode(true);
             const unit = localPrice(item);
+            const label = itemLabel(item);
             const image = row.querySelector('[data-field="image"]');
             if (image) {
                 image.src = itemImage(item);
-                image.alt = item.size + " " + FORMAT_LABELS[item.format];
+                image.alt = label;
             }
-            setField(row, "label", item.size + " " + FORMAT_LABELS[item.format]);
+            row.classList.toggle("is-custom", item.format === "custom");
+            setField(row, "label", label);
             setField(row, "unit", unit === null ? "" : formatMoney(unit));
             setField(row, "quantity", item.quantity);
             setField(row, "total", unit === null ? "" : formatMoney(unit * item.quantity));
@@ -488,6 +569,10 @@
         els.empty.hidden = !empty;
         els.details.hidden = empty;
         renderQuote();
+    }
+
+    function itemLabel(item) {
+        return item.format === "custom" ? item.name : item.size + " " + FORMAT_LABELS[item.format];
     }
 
     function renderShippingOptions() {
@@ -575,6 +660,16 @@
         els.message.textContent = "";
     }
 
+    function showCodeMessage(text) {
+        els.codeMessage.textContent = text;
+        els.codeMessage.hidden = false;
+    }
+
+    function hideCodeMessage() {
+        els.codeMessage.hidden = true;
+        els.codeMessage.textContent = "";
+    }
+
     // CSS hooks: .checkout.is-loading while a quote is in flight,
     // .checkout.is-busy while a payment is being processed.
     function setLoading(loading) {
@@ -628,6 +723,10 @@
             itemTemplate: document.getElementById("checkoutItemTemplate"),
             shippingTemplate: document.getElementById("checkoutShippingTemplate"),
             feeTemplate: document.getElementById("checkoutFeeTemplate"),
+            code: document.getElementById("checkoutCode"),
+            codeInput: document.getElementById("checkoutCodeInput"),
+            codeButton: document.getElementById("checkoutCodeButton"),
+            codeMessage: document.getElementById("checkoutCodeMessage"),
         };
 
         els.cartButton.addEventListener("click", open);
@@ -640,15 +739,24 @@
 
         form.addEventListener("submit", pay);
         els.shippingOptions.addEventListener("change", () => scheduleQuote(0));
+        els.codeButton.addEventListener("click", applyCode);
+        // Enter in the code field applies the code instead of paying.
+        els.codeInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                applyCode();
+            }
+        });
 
         renderCartButton();
         handleReturn();
+        handleCodeLink();
         loadConfig().catch(() => {
             // Worker unreachable: the page keeps the prices.js prices.
         });
     }
 
-    window.cassetteCheckout = { add, open, close };
+    window.cassetteCheckout = { add, addCode, open, close };
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
