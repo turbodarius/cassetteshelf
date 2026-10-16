@@ -66,6 +66,9 @@
         ordersLoaded = false;
         analyticsLoaded = false;
         analyticsData = null;
+        customProducts = [];
+        customLoaded = false;
+        resetCustomForm();
         showTab("settings");
         $("loginView").hidden = false;
         $("password").value = "";
@@ -431,11 +434,16 @@
         $("settingsTab").hidden = name !== "settings";
         $("ordersTab").hidden = name !== "orders";
         $("analyticsTab").hidden = name !== "analytics";
+        $("customTab").hidden = name !== "custom";
         document.querySelectorAll("[data-settings-only]").forEach((node) => {
             node.hidden = name !== "settings";
         });
         hideMessage();
         if (name === "orders" && !ordersLoaded) loadOrders(false);
+        if (name === "custom") {
+            fillPictureChoices();
+            if (!customLoaded) loadCustomProducts();
+        }
         if (name === "analytics") {
             if (!analyticsLoaded) loadAnalytics();
             else requestAnimationFrame(() => charts.forEach((draw) => draw()));
@@ -1012,7 +1020,228 @@
     function cartLabel(detail) {
         const [format, size] = (detail || "").split(":");
         const label = meta && meta.formats[format] ? meta.formats[format].label : format;
+        if (format === "custom") return "Custom products (codes)";
         return size ? size + " " + label : detail;
+    }
+
+    // ---- Custom products ----------------------------------------------------
+
+    let customProducts = [];
+    let customLoaded = false;
+    let editingCode = null;  // code of the product being edited, or null for a new one
+
+    async function loadCustomProducts() {
+        const button = $("refreshCustom");
+        button.disabled = true;
+        try {
+            customProducts = (await api("GET", null, "/admin/custom-products")).products;
+            customLoaded = true;
+            renderCustomProducts();
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            showMessage("Couldn't load the custom products: " + err.message, true);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function renderCustomProducts() {
+        const active = customProducts.filter((p) => customStatus(p) === "on").length;
+        $("customSummary").textContent = customProducts.length === 0
+            ? "No custom products yet."
+            : customProducts.length + " product" + (customProducts.length === 1 ? "" : "s") + " · " + active + " with a working code.";
+        $("customList").replaceChildren(...customProducts.map(customCard));
+    }
+
+    // "on" | "used up" | "off"
+    function customStatus(product) {
+        if (!product.active) return "off";
+        if (product.maxUses !== null && product.orders.length >= product.maxUses) return "used up";
+        return "on";
+    }
+
+    function customLink(product) {
+        return new URL("/?code=" + encodeURIComponent(product.code), location.origin).href;
+    }
+
+    function customPicture(image) {
+        if (!image) return "../images/favicon.svg";
+        const [format, size] = image.split(":");
+        return format === "cd" ? "../images/cd/thumbs/" + size + "cd.png" : "../images/thumbs/" + size + ".png";
+    }
+
+    function customCard(product) {
+        const card = el("article", { className: "order custom-product" });
+        const status = customStatus(product);
+        card.append(el("div", { className: "order-head" },
+            el("img", { className: "custom-picture", src: customPicture(product.image), alt: "" }),
+            el("strong", { className: "custom-code-text", textContent: product.code }),
+            el("strong", { className: "order-total", textContent: cad(product.price) }),
+            el("span", { className: "badge" + (status === "on" ? "" : " badge-off"), textContent: status }),
+        ));
+
+        const used = product.orders.length;
+        const usage = product.maxUses === null
+            ? used + " order" + (used === 1 ? "" : "s") + " so far (no limit)"
+            : used + " of " + product.maxUses + " order" + (product.maxUses === 1 ? "" : "s") + " used";
+        const details = el("div", { className: "order-block" },
+            el("h4", { textContent: "Product" }),
+            el("p", { textContent: product.name }),
+            el("p", { textContent: usage }),
+            product.note ? el("p", { textContent: "Note: " + product.note }) : "",
+            el("p", { className: "hint", textContent: "Created " + new Date(product.createdAt).toLocaleDateString() }),
+        );
+
+        const link = customLink(product);
+        const share = el("div", { className: "order-block" },
+            el("h4", { textContent: "Send to the customer" }),
+            el("p", { className: "custom-link" }, el("a", { href: link, target: "_blank", rel: "noopener", textContent: link })),
+            el("div", { className: "orders-actions" },
+                copyButton("Copy link", link),
+                copyButton("Copy code", product.code)),
+        );
+        card.append(el("div", { className: "order-body" }, details, share));
+
+        const edit = el("button", { type: "button", className: "pill pill-small", textContent: "Edit" });
+        edit.addEventListener("click", () => editCustomProduct(product));
+        const toggle = el("button", { type: "button", className: "pill pill-small", textContent: product.active ? "Turn off" : "Turn on" });
+        toggle.addEventListener("click", () =>
+            saveCustomProduct("PUT", product.code, { ...product, active: !product.active }, toggle));
+        const remove = el("button", { type: "button", className: "pill pill-small", textContent: "Delete" });
+        remove.addEventListener("click", () => {
+            if (!confirm("Delete " + product.code + "? Its code stops working. Past orders aren't affected.")) return;
+            saveCustomProduct("DELETE", product.code, null, remove);
+        });
+        card.append(el("div", { className: "order-shipping" }, edit, toggle, remove));
+        return card;
+    }
+
+    function copyButton(text, value) {
+        const button = el("button", { type: "button", className: "pill pill-small", textContent: text });
+        button.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(value);
+                button.textContent = "Copied";
+            } catch (e) {
+                button.textContent = "Copy failed";
+            }
+            setTimeout(() => (button.textContent = text), 1500);
+        });
+        return button;
+    }
+
+    // method "POST" creates, "PUT" edits, "DELETE" deletes. Returns true if saved.
+    async function saveCustomProduct(method, code, product, button) {
+        button.disabled = true;
+        try {
+            const path = "/admin/custom-products" + (method === "POST" ? "" : "/" + encodeURIComponent(code));
+            customProducts = (await api(method, product ? { product } : null, path)).products;
+            customLoaded = true;
+            renderCustomProducts();
+            hideMessage();
+            return true;
+        } catch (err) {
+            if (err.status === 401) return logOut("Your session ended, please log in again.");
+            showMessage("Couldn't save: " + err.message, true);
+            return false;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function fillPictureChoices() {
+        const select = $("customImage");
+        if (select.options.length > 0) return;
+        select.append(el("option", { value: "", textContent: "No picture (site icon)" }));
+        const sizes = meta ? meta.sizes : [];
+        for (const [format, info] of Object.entries(meta ? meta.formats : {})) {
+            const group = el("optgroup", { label: plural(info.label) });
+            sizes.forEach((size) => group.append(el("option", { value: format + ":" + size, textContent: size + " " + info.label })));
+            select.append(group);
+        }
+    }
+
+    // Letters and numbers that can't be mistaken for each other (no O/0, I/1).
+    function makeCode() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const random = crypto.getRandomValues(new Uint32Array(8));
+        return Array.from(random, (n) => chars[n % chars.length]).join("");
+    }
+
+    function editCustomProduct(product) {
+        fillPictureChoices();
+        editingCode = product.code;
+        $("customFormTitle").textContent = "Edit " + product.code;
+        $("customCode").value = product.code;
+        $("customCode").disabled = true;
+        $("generateCode").hidden = true;
+        $("customName").value = product.name;
+        $("customPrice").value = money(product.price);
+        $("customUses").value = product.maxUses === null ? "" : String(product.maxUses);
+        $("customImage").value = product.image;
+        $("customNote").value = product.note;
+        $("customActive").checked = product.active;
+        $("customSubmit").textContent = "Save changes";
+        $("customCancel").hidden = false;
+        $("customForm").scrollIntoView({ block: "center" });
+        $("customName").focus();
+    }
+
+    function resetCustomForm() {
+        editingCode = null;
+        $("customForm").reset();
+        $("customFormTitle").textContent = "New custom product";
+        $("customCode").disabled = false;
+        $("generateCode").hidden = false;
+        $("customUses").value = "1";
+        $("customActive").checked = true;
+        $("customSubmit").textContent = "Create product";
+        $("customCancel").hidden = true;
+        $("customForm").querySelectorAll(".is-invalid").forEach((input) => input.classList.remove("is-invalid"));
+    }
+
+    async function submitCustomForm(event) {
+        event.preventDefault();
+        const form = $("customForm");
+        form.querySelectorAll(".is-invalid").forEach((input) => input.classList.remove("is-invalid"));
+        const invalid = (id, message) => {
+            $(id).classList.add("is-invalid");
+            $(id).focus();
+            showMessage(message, true);
+        };
+
+        const code = $("customCode").value.trim().toUpperCase();
+        const name = $("customName").value.trim();
+        const price = parseMoney($("customPrice").value);
+        const usesText = $("customUses").value.trim();
+        const maxUses = usesText === "" ? null : Number(usesText);
+        if (!/^[A-Z0-9-]{3,30}$/.test(code)) return invalid("customCode", "The code must be 3 to 30 letters, numbers or dashes.");
+        if (!name) return invalid("customName", "Give the product a name.");
+        if (!Number.isInteger(price) || price < 1) return invalid("customPrice", "Enter a price, e.g. 315 or 315.50.");
+        if (maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1)) {
+            return invalid("customUses", "Orders allowed must be a whole number (1 for a one-time code), or empty for no limit.");
+        }
+
+        const product = {
+            code, name, price, maxUses,
+            image: $("customImage").value,
+            note: $("customNote").value.trim(),
+            active: $("customActive").checked,
+        };
+        const saved = editingCode
+            ? await saveCustomProduct("PUT", editingCode, product, $("customSubmit"))
+            : await saveCustomProduct("POST", null, product, $("customSubmit"));
+        if (saved) {
+            const created = !editingCode;
+            resetCustomForm();
+            if (created) {
+                const link = customLink({ code });
+                showMessage("Created " + code + ". Send the customer this link: " + link, false, {
+                    text: "Copy link",
+                    onClick: () => navigator.clipboard.writeText(link).catch(() => {}),
+                });
+            }
+        }
     }
 
     // ---- Imported Shopify orders --------------------------------------------
@@ -1217,6 +1446,13 @@
         tab.addEventListener("click", () => showTab(tab.dataset.tab));
     });
     $("refreshOrders").addEventListener("click", () => loadOrders(false));
+    $("refreshCustom").addEventListener("click", loadCustomProducts);
+    $("customForm").addEventListener("submit", submitCustomForm);
+    $("customCancel").addEventListener("click", resetCustomForm);
+    $("generateCode").addEventListener("click", () => {
+        $("customCode").value = makeCode();
+        $("customCode").classList.remove("is-invalid");
+    });
     $("loadMoreOrders").addEventListener("click", () => loadOrders(true));
     $("downloadCsv").addEventListener("click", downloadCsv);
     $("onlyToShip").addEventListener("change", renderOrders);

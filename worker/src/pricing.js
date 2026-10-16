@@ -4,14 +4,17 @@
 // the request.
 
 import { FORMATS } from "./catalog.js";
+import { customProductProblem, normalizeCode } from "./custom.js";
 
 export const MAX_LINES = 20;
 export const MAX_QUANTITY = 20;
 
 export class OrderError extends Error {}
 
-// [{ format, size, quantity }] -> priced line items.
-export function priceItems(settings, items) {
+// [{ format, size, quantity }] -> priced line items. Custom products
+// ({ format: "custom", code }) are priced from `customProducts`
+// (custom.js), one of each per order.
+export function priceItems(settings, items, customProducts = []) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new OrderError("your cart is empty");
   }
@@ -19,7 +22,9 @@ export function priceItems(settings, items) {
     throw new OrderError("too many items in cart");
   }
 
+  const codesInCart = new Set();
   return items.map((item) => {
+    if (item?.format === "custom") return customLine(item, customProducts, codesInCart);
     const format = ownValue(FORMATS, item?.format);
     const unitAmount = format && ownValue(settings.prices[item.format] ?? {}, item?.size);
     const quantity = Number(item?.quantity);
@@ -40,6 +45,18 @@ export function priceItems(settings, items) {
       amount: unitAmount * quantity,
     };
   });
+}
+
+function customLine(item, customProducts, codesInCart) {
+  const code = normalizeCode(item.code);
+  const product = customProducts.find((p) => p.code === code);
+  const problem = customProductProblem(product);
+  if (problem) throw new OrderError(problem + " (" + (code || "no code") + "), please remove it from your cart");
+  if (codesInCart.has(code)) throw new OrderError(product.name + " is in your cart twice");
+  codesInCart.add(code);
+  if (Number(item.quantity) !== 1) throw new OrderError("only one " + product.name + " can be ordered");
+  // `size` holds the code, so metadata reads "custom:CODE:1".
+  return { format: "custom", size: code, label: product.name, quantity: 1, unitAmount: product.price, amount: product.price };
 }
 
 // Returns the options for a country, or [] if we don't ship there.
@@ -102,6 +119,18 @@ export function hasTaxableAddress(address) {
   return Boolean(
     address?.country && address?.postal_code && (address?.state || !needsState(address.country)),
   );
+}
+
+// Names of the custom products in an order, for the dashboard and emails
+// ("CODE=Name|CODE2=Name2", within Stripe's 500-character limit).
+export function customNamesMetadata(lines) {
+  let out = "";
+  for (const l of lines.filter((l) => l.format === "custom")) {
+    const entry = (out ? "|" : "") + l.size + "=" + l.label.replace(/[|=]/g, " ");
+    if (out.length + entry.length > 500) break;
+    out += entry;
+  }
+  return out;
 }
 
 // Compact "format:size:qty" summary for PaymentIntent metadata

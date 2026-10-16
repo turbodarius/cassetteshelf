@@ -9,6 +9,7 @@ secret key and can't change what a customer is charged.
 | File | What it's for |
 |---|---|
 | `src/analytics.js` | Records anonymous visits / checkout steps and builds the Analytics tab's report. |
+| `src/custom.js` | Custom products: one-off products with a code and their own price (stored in KV). |
 | `src/email.js` | The "new order" email to the shop and the "order shipped" email to customers, sent through Resend. |
 | `src/legacy.js` | Stores orders imported from a Shopify CSV export (in KV, never in the repo). |
 | `src/orders.js` | Reads paid orders from Stripe for the dashboard's Orders tab. |
@@ -169,6 +170,22 @@ customer (see [Shipping emails to customers](#shipping-emails-to-customers)). Or
 ship are labelled and counted, and **Only show orders to ship** filters the
 list. **Undo** clears it. Carriers and their tracking pages are listed in
 `CARRIERS` in `src/orders.js`.
+
+**Custom products** (their own tab): make a one-off product with its own
+price for a customer: a code (type one or press *Make one up*), the name the
+customer sees, the price, how many orders may use it (1 by default; empty for
+no limit), an optional picture from the configurator's thumbnails and a
+private note. Send the customer the product's link
+(`https://cassetteshelf.com/?code=THECODE`, which opens the cart with the
+product in it) or just the code, which they enter under "have a product
+code?" in the cart. Codes ignore upper/lower case. The product is one per
+order; shipping and fees (e.g. US tariffs) are added like for any shelf, and
+tax too when it's on. Once its orders are used up (counted when Stripe
+confirms the payment), the code stops working; **Edit** can allow more orders
+or change the price, **Turn off** stops the code, **Delete** removes it. Paid
+orders show the product as "Name (code THECODE)". The products are stored in
+Cloudflare KV (`custom-products`, next to the settings), and the codes are
+never shown on the public site.
 
 The **Analytics** tab (7 days / 30 days / 90 days / 12 months) shows:
 

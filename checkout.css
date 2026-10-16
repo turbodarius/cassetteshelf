@@ -18,6 +18,9 @@
      .checkout-items            <ul> of .checkout-item rows:
        .checkout-item-image / -name / -unit / -qty / -total / -remove
      .checkout-empty            "your cart is empty"
+     .checkout-code             "have a product code?" (a <details>):
+       .checkout-code-row / -apply / -message
+     .checkout-item.is-custom   a custom product row (no − + buttons)
      .checkout-details          everything below the item list
      .checkout-field            a <label> wrapping a <span> + input (email, phone)
      .checkout-address-element  Stripe's address form (style via APPEARANCE in checkout.js)
@@ -428,4 +431,54 @@ body:has(.checkout[open]) {
     top: calc(var(--checkout-screen-gap) + var(--checkout-border) + var(--checkout-padding));
     right: calc(var(--checkout-screen-gap) + var(--checkout-border) + var(--checkout-padding));
     z-index: 1;
+}
+
+/* "have a product code?": a small link that opens a field + apply button. */
+.checkout-code summary {
+    cursor: pointer;
+    text-decoration: underline;
+    margin-left: var(--checkout-indent);
+}
+
+.checkout-code-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.checkout-code-row .checkout-field {
+    flex: 0 1 16rem;
+}
+
+.checkout-code-row input {
+    text-transform: uppercase;
+}
+
+.checkout-code-apply {
+    height: 34px;
+    margin-bottom: 12px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1.5px solid black;
+    background: white;
+    color: black;
+    cursor: pointer;
+}
+
+.checkout-code-apply:active {
+    transform: scale(0.95);
+}
+
+.checkout-code-message {
+    margin: 0 0 12px var(--checkout-indent);
+}
+
+/* Custom products are one per order: no − + buttons, "remove" takes their place. */
+.checkout-item.is-custom .checkout-item-qty {
+    display: none;
+}
+
+.checkout-item.is-custom .checkout-item-remove {
+    grid-area: qty;
 }

@@ -104,7 +104,7 @@ export function toOrder(pi) {
       postal_code: address.postal_code ?? "",
       country: address.country ?? "",
     },
-    items: parseItems(meta.items),
+    items: parseItems(meta.items, meta.custom_products),
     shipping: {
       option: meta.shipping_rate ?? "",
       amount: toInt(meta.shipping_amount),
@@ -131,10 +131,19 @@ function describeShipment(meta) {
 }
 
 // "cassette:2x2:1,cd:1x1:2" -> [{ format, size, quantity, label }]
-function parseItems(text) {
+// Custom products are "custom:CODE:1", named in `customNames`
+// ("CODE=Name|...", see customNamesMetadata in pricing.js).
+function parseItems(text, customNames) {
   if (!text) return [];
+  const names = new Map((customNames ?? "").split("|").map((entry) => {
+    const at = entry.indexOf("=");
+    return [entry.slice(0, at), entry.slice(at + 1)];
+  }));
   return text.split(",").map((part) => {
     const [format, size, quantity] = part.split(":");
+    if (format === "custom") {
+      return { format, size, quantity: toInt(quantity) ?? 1, label: (names.get(size) || "custom product") + " (code " + size + ")" };
+    }
     const label = (Object.hasOwn(FORMATS, format) ? FORMATS[format].label : format) ?? "";
     return { format, size, quantity: toInt(quantity) ?? 1, label: size + " " + label };
   });

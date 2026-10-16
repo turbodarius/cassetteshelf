@@ -803,3 +803,159 @@ test("legacy orders: odd values are cleaned (no unsafe links, short fields)", as
   assert.equal(o.customer.name.length, 100);
   assert.equal(o.address.country, "CA");
 });
+
+// ---- Custom products (codes) ----
+
+const customAdmin = (workerEnv, method, path = "", body, password = PASSWORD) =>
+  call("/admin/custom-products" + path, {
+    method, body, workerEnv, headers: { authorization: "Bearer " + password },
+  });
+const product = (extra) => ({
+  code: " smith-7x3 ", name: "Custom 7x3 cassette shelf", price: 31500,
+  maxUses: 1, image: "cassette:6x3", note: "Jane, asked by email", active: true, ...extra,
+});
+const customCart = (code = "SMITH-7X3", quantity = 1) => [{ format: "custom", code, quantity }];
+
+async function envWithProduct(extra) {
+  const workerEnv = { ...adminEnv() };
+  const res = await customAdmin(workerEnv, "POST", "", { product: product(extra) });
+  assert.equal(res.status, 200);
+  return workerEnv;
+}
+
+test("custom products: created in the dashboard, code cleaned up, password required", async () => {
+  const workerEnv = adminEnv();
+  assert.equal((await customAdmin(workerEnv, "GET", "", undefined, "nope")).status, 401);
+  assert.deepEqual(await (await customAdmin(workerEnv, "GET")).json(), { products: [] });
+
+  const res = await customAdmin(workerEnv, "POST", "", { product: product() });
+  const { products } = await res.json();
+  assert.equal(products.length, 1);
+  assert.equal(products[0].code, "SMITH-7X3");
+  assert.equal(products[0].price, 31500);
+  assert.deepEqual(products[0].orders, []);
+  assert.match(products[0].createdAt, /^\d{4}-/);
+  assert.ok(workerEnv.SETTINGS.store.has("custom-products"));
+
+  const duplicate = await customAdmin(workerEnv, "POST", "", { product: product({ code: "Smith-7x3" }) });
+  assert.equal(duplicate.status, 400);
+  assert.match((await duplicate.json()).error, /already used/);
+});
+
+test("custom products: bad input is refused", async () => {
+  const workerEnv = adminEnv();
+  for (const [extra, message] of [
+    [{ code: "a" }, /3 to 30/],
+    [{ code: "has space" }, /3 to 30/],
+    [{ name: " " }, /name/],
+    [{ price: 0 }, /price/],
+    [{ price: 12.5 }, /price/],
+    [{ maxUses: 0 }, /number of orders/],
+    [{ image: "cassette:9x9" }, /picture/],
+    [{ image: "__proto__:1x1" }, /picture/],
+    [{ active: "yes" }, /on or off/],
+  ]) {
+    const res = await customAdmin(workerEnv, "POST", "", { product: product(extra) });
+    assert.equal(res.status, 400, JSON.stringify(extra));
+    assert.match((await res.json()).error, message);
+  }
+  assert.equal((await customAdmin(workerEnv, "POST", "", {})).status, 400);
+});
+
+test("custom products: a customer looks up a code (any case) and sees no private details", async () => {
+  const workerEnv = await envWithProduct();
+  const res = await call("/code", { body: { code: "smith-7x3" }, workerEnv });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    product: { code: "SMITH-7X3", name: "Custom 7x3 cassette shelf", price: 31500, image: "cassette:6x3" },
+  });
+  const wrong = await call("/code", { body: { code: "NOPE" }, workerEnv });
+  assert.equal(wrong.status, 400);
+  assert.equal((await wrong.json()).error, "this code isn't valid");
+  assert.equal((await call("/code", { body: {}, workerEnv })).status, 400);
+  // Codes are never listed publicly.
+  assert.ok(!JSON.stringify(await (await call("/config", { method: "GET", workerEnv })).json()).includes("SMITH"));
+});
+
+test("custom products: priced at their own price with normal shipping and fees", async () => {
+  const workerEnv = await envWithProduct();
+  const res = await call("/quote", {
+    body: { items: [...customCart("smith-7x3"), { format: "cassette", size: "1x1", quantity: 1 }], address: { country: "US" } },
+    workerEnv,
+  });
+  assert.equal(res.status, 200);
+  const quote = await res.json();
+  assert.deepEqual(quote.items[0], {
+    format: "custom", size: "SMITH-7X3", label: "Custom 7x3 cassette shelf", quantity: 1, unitAmount: 31500, amount: 31500,
+  });
+  const shelves = 31500 + FORMATS.cassette.prices["1x1"];
+  assert.equal(quote.subtotal, shelves);
+  const tariffs = SHIPPING_RATES.US.fees?.[0];
+  if (tariffs) assert.equal(quote.fees[0].amount, Math.round((shelves * tariffs.percent) / 100));
+  assert.equal(quote.total, shelves + quote.shipping + quote.fees.reduce((s, f) => s + f.amount, 0));
+});
+
+test("custom products: one per order, not twice, turned off or used up codes are refused", async () => {
+  const workerEnv = await envWithProduct();
+  const quote = (items) => call("/quote", { body: { items, address: { country: "CA" } }, workerEnv });
+
+  assert.match((await (await quote(customCart("SMITH-7X3", 2))).json()).error, /only one/);
+  assert.match((await (await quote([...customCart(), ...customCart("smith-7x3")])).json()).error, /twice/);
+  assert.match((await (await quote(customCart("OTHER"))).json()).error, /isn't valid \(OTHER\)/);
+
+  await customAdmin(workerEnv, "PUT", "/SMITH-7X3", { product: product({ active: false }) });
+  assert.match((await (await quote(customCart())).json()).error, /isn't valid/);
+  assert.equal((await call("/code", { body: { code: "SMITH-7X3" }, workerEnv })).status, 400);
+});
+
+test("custom products: checkout stores the code and name; the paid order uses up a one-time code", async () => {
+  const workerEnv = await envWithProduct();
+  const res = await call("/checkout", {
+    body: { items: customCart(), address: ADDRESS, name: "Jane", email: "jane@example.com" },
+    workerEnv,
+  });
+  assert.equal(res.status, 200);
+  const created = stripeCalls.find((c) => c.path === "/v1/payment_intents").params;
+  assert.equal(created.get("metadata[items]"), "custom:SMITH-7X3:1");
+  assert.equal(created.get("metadata[custom_products]"), "SMITH-7X3=Custom 7x3 cassette shelf");
+  assert.equal(created.get("description"), "1 x Custom 7x3 cassette shelf");
+
+  // Stripe confirms the payment (twice: webhooks can be retried).
+  const paid = { id: "pi_paid1", object: "payment_intent", metadata: { items: "custom:SMITH-7X3:1,cassette:1x1:1" } };
+  for (let i = 0; i < 2; i++) {
+    const payload = JSON.stringify({ id: "evt_1", object: "event", type: "payment_intent.succeeded", data: { object: paid } });
+    const signature = await new Stripe("sk_test_fake").webhooks.generateTestHeaderStringAsync({ payload, secret: env.STRIPE_WEBHOOK_SECRET });
+    const hook = await worker.fetch(new Request("https://worker.example/webhook", { method: "POST", body: payload, headers: { "stripe-signature": signature } }), workerEnv);
+    assert.equal(hook.status, 200);
+  }
+  const { products } = await (await customAdmin(workerEnv, "GET")).json();
+  assert.deepEqual(products[0].orders, ["pi_paid1"]);
+
+  const again = await call("/code", { body: { code: "SMITH-7X3" }, workerEnv });
+  assert.equal((await again.json()).error, "this code has already been used");
+
+  // Allowing more orders makes it usable again.
+  await customAdmin(workerEnv, "PUT", "/SMITH-7X3", { product: product({ maxUses: null }) });
+  assert.equal((await call("/code", { body: { code: "SMITH-7X3" }, workerEnv })).status, 200);
+  assert.deepEqual((await (await customAdmin(workerEnv, "GET")).json()).products[0].orders, ["pi_paid1"], "edits keep the orders");
+});
+
+test("custom products: orders show the product's name; edit keeps the code; delete", async () => {
+  SEARCH_PAGE_1.data[0].metadata = { ...SEARCH_PAGE_1.data[0].metadata, items: "custom:SMITH-7X3:1", custom_products: "SMITH-7X3=Custom 7x3 cassette shelf" };
+  try {
+    const body = await (await call("/admin/orders", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } })).json();
+    assert.deepEqual(body.orders[0].items, [{ format: "custom", size: "SMITH-7X3", quantity: 1, label: "Custom 7x3 cassette shelf (code SMITH-7X3)" }]);
+  } finally {
+    SEARCH_PAGE_1.data[0].metadata.items = "cassette:1x1:1";
+    delete SEARCH_PAGE_1.data[0].metadata.custom_products;
+  }
+
+  const workerEnv = await envWithProduct();
+  const edited = await (await customAdmin(workerEnv, "PUT", "/smith-7x3", { product: product({ code: "CHANGED", price: 30000 }) })).json();
+  assert.equal(edited.products[0].code, "SMITH-7X3");
+  assert.equal(edited.products[0].price, 30000);
+  assert.equal((await customAdmin(workerEnv, "PUT", "/MISSING", { product: product() })).status, 400);
+
+  const deleted = await (await customAdmin(workerEnv, "DELETE", "/SMITH-7X3")).json();
+  assert.deepEqual(deleted.products, []);
+});

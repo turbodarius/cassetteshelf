@@ -356,6 +356,7 @@ label.pill {
 
 .tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-right: auto;
     margin-left: clamp(0px, 3vw, 32px);
@@ -545,6 +546,66 @@ label.pill {
 
 .email-heading {
     margin-top: 24px;
+}
+
+/* ---- Custom products ---- */
+
+.custom-code {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0 12px;
+}
+
+.custom-code .pill {
+    margin-bottom: 12px;
+}
+
+.field select {
+    width: 100%;
+    max-width: 28rem;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--pale);
+    border-radius: 6px;
+    background: white;
+    font: inherit;
+}
+
+.custom-form .field-small input {
+    max-width: 12rem;
+}
+
+.custom-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.custom-product .order-head {
+    align-items: center;
+}
+
+.custom-code-text {
+    font-size: 1.25rem;
+    letter-spacing: 0.04em;
+}
+
+.custom-picture {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border: 1.5px solid black;
+    border-radius: 50%;
+}
+
+.custom-link {
+    word-break: break-all;
+}
+
+.badge-off {
+    border-color: var(--pale);
+    color: #777;
 }
 
 /* ---- Analytics ---- */
