@@ -327,6 +327,7 @@ async function buildQuote(stripe, settings, body, { complete, customProducts = [
     country: address.country ?? null,
     shippingOptions: [],
     shippingRate: null,
+    shippingWaived: false,
     fees: [],
     tax: null,
     taxError: null,
@@ -341,6 +342,12 @@ async function buildQuote(stripe, settings, body, { complete, customProducts = [
 
   quote.shippingOptions = shippingOptionsFor(settings, address.country);
   quote.shippingRate = selectShipping(settings, address.country, body?.shippingRateId);
+  // "Waive shipping" box in the checkout (only for customers the shop
+  // agreed with; the dashboard and the order email flag these orders).
+  if (body?.waiveShipping === true) {
+    quote.shippingWaived = true;
+    quote.shippingRate = { ...quote.shippingRate, amount: 0 };
+  }
   quote.fees = feesFor(settings, address.country, subtotal);
   const feesTotal = quote.fees.reduce((sum, f) => sum + f.amount, 0);
 
@@ -409,6 +416,7 @@ function publicQuote(quote) {
     shippingOptions: quote.shippingOptions,
     shippingRateId: quote.shippingRate?.id ?? null,
     shipping: quote.shippingRate?.amount ?? null,
+    shippingWaived: quote.shippingWaived,
     fees: quote.fees,
     tax: quote.tax,
     taxError: quote.taxError,
@@ -447,6 +455,7 @@ async function createCheckout(stripe, settings, body, customProducts) {
       items: itemsMetadata(quote.lines),
       shipping_rate: quote.shippingRate.id,
       shipping_amount: String(quote.shippingRate.amount),
+      ...(quote.shippingWaived && { shipping_waived: "true" }),
       fees: feesMetadata(quote.fees),
       tax_amount: String(quote.tax),
       ...(customNames && { custom_products: customNames }),

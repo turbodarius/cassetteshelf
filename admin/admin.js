@@ -617,6 +617,9 @@
             order.shipment
                 ? el("span", { className: "badge badge-shipped", textContent: order.source === "shopify" ? "fulfilled" : "shipped" })
                 : toShip(order) ? el("span", { className: "badge badge-to-ship", textContent: "to ship" }) : "",
+            order.shipping.waived
+                ? el("span", { className: "badge badge-warning", textContent: "shipping waived: pre-approved?" })
+                : "",
         ));
 
         const customer = el("div", { className: "order-block" }, el("h4", { textContent: "Customer" }));
@@ -650,7 +653,7 @@
         const itemsTotal = order.total - (order.shipping.amount || 0) - (order.tax || 0) -
             order.fees.reduce((sum, f) => sum + f.amount, 0);
         charge("Shelves", itemsTotal);
-        charge("Shipping (" + (order.shipping.option || "—") + ")", order.shipping.amount || 0);
+        charge("Shipping (" + (order.shipping.option || "—") + (order.shipping.waived ? ", waived" : "") + ")", order.shipping.amount || 0);
         order.fees.forEach((f) => charge(capitalizeWord(f.id), f.amount));
         if (order.tax) charge("Tax", order.tax);
         const bought = el("div", { className: "order-block" }, el("h4", { textContent: "Items" }), items, charges);

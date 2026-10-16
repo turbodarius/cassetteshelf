@@ -421,7 +421,8 @@ label.pill {
 }
 
 .badge-refunded,
-.badge-partially-refunded {
+.badge-partially-refunded,
+.badge-warning {
     border-color: var(--error);
     color: var(--error);
 }

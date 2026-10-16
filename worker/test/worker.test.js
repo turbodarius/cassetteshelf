@@ -526,7 +526,7 @@ test("orders: paid payments from Stripe, newest first, with everything needed to
     customer: { name: "Pat Buyer", email: "buyer@example.com", phone: "+1 555 0100" },
     address: { line1: "1 Main St", line2: "Apt 2", city: "Albany", state: "NY", postal_code: "12207", country: "US" },
     items: [{ format: "cassette", size: "1x1", quantity: 1, label: "1x1 cassette shelf" }],
-    shipping: { option: "standard", amount: 2500 },
+    shipping: { option: "standard", amount: 2500, waived: false },
     fees: [{ id: "tariffs", amount: 1376 }],
     tax: 0,
     paymentMethod: "Visa •••• 4242",
@@ -958,4 +958,52 @@ test("custom products: orders show the product's name; edit keeps the code; dele
 
   const deleted = await (await customAdmin(workerEnv, "DELETE", "/SMITH-7X3")).json();
   assert.deepEqual(deleted.products, []);
+});
+
+// ---- Waive shipping ----
+
+test("waive shipping: shipping is 0, fees unchanged, and the order says so", async () => {
+  const body = { items: cart, address: { country: "US" }, shippingRateId: "standard" };
+  const normal = await (await call("/quote", { body, workerEnv: noTaxEnv })).json();
+  const waived = await (await call("/quote", { body: { ...body, waiveShipping: true }, workerEnv: noTaxEnv })).json();
+  assert.ok(normal.shipping > 0);
+  assert.equal(normal.shippingWaived, false);
+  assert.equal(waived.shipping, 0);
+  assert.equal(waived.shippingWaived, true);
+  assert.deepEqual(waived.fees, normal.fees);
+  assert.equal(waived.total, normal.total - normal.shipping);
+  assert.deepEqual(waived.shippingOptions, normal.shippingOptions, "options still show their prices");
+
+  // Only a real `true` waives it.
+  const truthy = await (await call("/quote", { body: { ...body, waiveShipping: "yes" }, workerEnv: noTaxEnv })).json();
+  assert.equal(truthy.shipping, normal.shipping);
+
+  const res = await call("/checkout", {
+    body: { items: cart, address: ADDRESS, name: "Jane", email: "jane@example.com", waiveShipping: true },
+    workerEnv: noTaxEnv,
+  });
+  assert.equal(res.status, 200);
+  const params = stripeCalls.find((c) => c.path === "/v1/payment_intents").params;
+  assert.equal(params.get("metadata[shipping_amount]"), "0");
+  assert.equal(params.get("metadata[shipping_waived]"), "true");
+  assert.equal(Number(params.get("amount")), (await res.json()).quote.total);
+});
+
+test("waive shipping: with tax on, shipping isn't taxed", async () => {
+  const res = await call("/quote", { body: { items: cart, address: ADDRESS, waiveShipping: true } });
+  assert.equal(res.status, 200);
+  const calc = stripeCalls.find((c) => c.path === "/v1/tax/calculations").params;
+  assert.equal(calc.get("shipping_cost[amount]"), "0");
+});
+
+test("waive shipping: shown on the dashboard's order", async () => {
+  SEARCH_PAGE_1.data[0].metadata = { ...SEARCH_PAGE_1.data[0].metadata, shipping_amount: "0", shipping_waived: "true" };
+  try {
+    const body = await (await call("/admin/orders", { method: "GET", workerEnv: adminEnv(), headers: { authorization: "Bearer " + PASSWORD } })).json();
+    assert.deepEqual(body.orders[0].shipping, { option: "standard", amount: 0, waived: true });
+    assert.equal(body.orders[1].shipping.waived, false);
+  } finally {
+    SEARCH_PAGE_1.data[0].metadata.shipping_amount = "2500";
+    delete SEARCH_PAGE_1.data[0].metadata.shipping_waived;
+  }
 });

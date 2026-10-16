@@ -141,7 +141,7 @@ export function orderEmail(order, dashboardUrl) {
   const shelves = order.total - (order.shipping.amount || 0) - (order.tax || 0) - feesTotal;
   const charges = [
     ["Shelves", shelves],
-    ["Shipping (" + (order.shipping.option || "—") + ")", order.shipping.amount || 0],
+    ["Shipping (" + (order.shipping.option || "—") + (order.shipping.waived ? ", WAIVED by the customer" : "") + ")", order.shipping.amount || 0],
     ...order.fees.map((f) => [capitalize(f.id), f.amount]),
     ...(order.tax ? [["Tax", order.tax]] : []),
   ];
