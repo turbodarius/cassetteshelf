@@ -580,7 +580,7 @@
         const options = quote ? quote.shippingOptions : [];
         els.shippingOptions.replaceChildren();
         els.shippingHint.hidden = options.length > 0;
-        els.waive.hidden = options.length === 0;
+        els.waive.hidden = options.length === 0 || !(config && config.waiveShipping);
 
         for (const option of options) {
             const choice = els.shippingTemplate.content.firstElementChild.cloneNode(true);

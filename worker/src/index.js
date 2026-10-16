@@ -98,6 +98,8 @@ export default {
           countries: countryList(settings),
           prices: displayPrices(settings),
           taxEnabled: settings.collectTax,
+          // Lets the site show the "Waive Shipping" box (older workers ignore it).
+          waiveShipping: true,
         };
       } else if (url.pathname === "/quote" && request.method === "POST") {
         const { settings } = await loadSettings(env);

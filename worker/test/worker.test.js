@@ -129,6 +129,7 @@ test("GET /config returns key and countries with CORS for allowed origin", async
   const body = await res.json();
   assert.equal(body.publishableKey, "pk_test_fake");
   assert.deepEqual(body.countries.map((c) => c.code), ["CA", "US"]);
+  assert.equal(body.waiveShipping, true);
 });
 
 test("unknown origins get no CORS header", async () => {
