@@ -306,8 +306,12 @@
         elements.create("payment").mount("#checkoutPaymentElement");
 
         // Address form with autocomplete (suggestions as you type), limited
-        // to the countries the worker ships to (shipping.js).
-        addressElement = elements.create("address", {
+        // to the countries the worker ships to (shipping.js). It's in its own
+        // Elements group on purpose: in the payment's group, confirmPayment
+        // would send the address to Stripe again, which Stripe refuses since
+        // the worker already set it (with the address it priced).
+        const addressElements = stripe.elements({ appearance: APPEARANCE, fonts: STRIPE_FONTS });
+        addressElement = addressElements.create("address", {
             mode: "shipping",
             allowedCountries: config.countries.map((c) => c.code),
             autocomplete: { mode: "automatic" },
@@ -454,8 +458,10 @@
         try {
             // Validates the address and payment fields (Stripe shows any
             // problems next to the field) before anything is charged.
+            const address = await addressElement.getValue();
             const { error: fieldsError } = await elements.submit();
             if (fieldsError) throw fieldsError;
+            if (!address.complete) throw new Error("please complete your shipping address.");
             if (!quote || !quote.total) {
                 throw new Error((quote && quote.taxError) || "please complete your shipping address.");
             }
